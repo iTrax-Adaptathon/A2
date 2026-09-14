@@ -3,7 +3,7 @@ import { upsertLog } from "../api";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-export default function LogForm({ reference, onSaved }) {
+export default function LogForm({ reference, region, onSaved }) {
   const [date, setDate] = useState(todayIso());
   const [commuteMode, setCommuteMode] = useState("");
   const [commuteDistance, setCommuteDistance] = useState("");
@@ -31,10 +31,11 @@ export default function LogForm({ reference, onSaved }) {
         energy_kwh: energyMode === "kwh" && energyKwh !== "" ? Number(energyKwh) : null,
         energy_level: energyMode === "level" ? energyLevel || null : null,
         notes: notes || null,
+        region,
+        channel: "form",
+        inferred_fields: [],
       });
       onSaved();
-      // Leave the date/inputs as-is so the user can immediately tweak and resave,
-      // but clear notes since those are usually day-specific.
       setNotes("");
     } catch (err) {
       setError(err?.response?.data?.detail ? JSON.stringify(err.response.data.detail) : "Failed to save log.");
@@ -44,8 +45,7 @@ export default function LogForm({ reference, onSaved }) {
   }
 
   return (
-    <form className="card log-form" onSubmit={handleSubmit}>
-      <h2>Log a day</h2>
+    <form className="log-form" onSubmit={handleSubmit}>
       <p className="hint">
         Leave anything blank if you don't know it or forgot to track it &mdash; the estimator will fill
         the gap using your own recent average instead of assuming zero.

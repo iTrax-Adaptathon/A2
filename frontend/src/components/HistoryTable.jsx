@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { deleteLog } from "../api";
+import SourceBadge from "./SourceBadge";
 
-function SourceDot({ source }) {
-  return <span className={`source-dot source-dot-${source}`} title={source} />;
-}
+const CHANNEL_LABEL = {
+  form: "Form",
+  natural_language: "Text",
+  voice: "Voice",
+  receipt: "Receipt",
+};
 
 export default function HistoryTable({ trend, onChanged }) {
   const [deletingDate, setDeletingDate] = useState(null);
@@ -30,6 +34,7 @@ export default function HistoryTable({ trend, onChanged }) {
           <thead>
             <tr>
               <th>Date</th>
+              <th>Via</th>
               <th>Commute</th>
               <th>Food</th>
               <th>Energy</th>
@@ -42,16 +47,20 @@ export default function HistoryTable({ trend, onChanged }) {
               <tr key={entry.date}>
                 <td>{entry.date}</td>
                 <td>
-                  {entry.commute.kg_co2e} kg <SourceDot source={entry.commute.source} />
+                  <span className="channel-pill">{CHANNEL_LABEL[entry.channel] || entry.channel}</span>
                 </td>
                 <td>
-                  {entry.food.kg_co2e} kg <SourceDot source={entry.food.source} />
+                  {entry.commute.kg_co2e} kg <SourceBadge source={entry.commute.source} />
                 </td>
                 <td>
-                  {entry.energy.kg_co2e} kg <SourceDot source={entry.energy.source} />
+                  {entry.food.kg_co2e} kg <SourceBadge source={entry.food.source} />
+                </td>
+                <td>
+                  {entry.energy.kg_co2e} kg <SourceBadge source={entry.energy.source} />
                 </td>
                 <td>
                   <strong>{entry.total_kg_co2e} kg</strong>
+                  <span className="muted"> ({entry.total_low_kg_co2e}&ndash;{entry.total_high_kg_co2e})</span>
                 </td>
                 <td>
                   <button
@@ -67,11 +76,6 @@ export default function HistoryTable({ trend, onChanged }) {
           </tbody>
         </table>
       </div>
-      <p className="hint">
-        <SourceDot source="logged" /> logged &nbsp;
-        <SourceDot source="estimated" /> estimated from your average &nbsp;
-        <SourceDot source="default" /> population default (no history yet)
-      </p>
     </div>
   );
 }

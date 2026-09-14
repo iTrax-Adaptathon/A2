@@ -1,11 +1,30 @@
 :root {
-  --text: #1f2937;
-  --muted: #6b7280;
-  --bg: #f9fafb;
-  --card-bg: #ffffff;
+  --bg: #f4f6f8;
+  --bg-elevated: #ffffff;
+  --bg-sidebar: #10161f;
+  --text: #111827;
+  --text-muted: #6b7280;
   --border: #e5e7eb;
+  --border-soft: #eef0f3;
 
-  font: 15px/1.5 system-ui, "Segoe UI", Roboto, sans-serif;
+  --accent: #16a34a;
+  --accent-soft: #dcfce7;
+  --commute: #6366f1;
+  --commute-soft: #e0e7ff;
+  --food: #16a34a;
+  --food-soft: #dcfce7;
+  --energy: #f59e0b;
+  --energy-soft: #fef3c7;
+  --warning: #d97706;
+  --warning-soft: #fef3c7;
+  --danger: #dc2626;
+  --danger-soft: #fee2e2;
+
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow-md: 0 4px 16px rgba(16, 24, 40, 0.08);
+  --radius: 14px;
+
+  font: 15px/1.55 "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
   color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
@@ -13,11 +32,23 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    --bg: #0b0e13;
+    --bg-elevated: #151a22;
+    --bg-sidebar: #0a0d12;
     --text: #f3f4f6;
-    --muted: #9ca3af;
-    --bg: #111827;
-    --card-bg: #1f2937;
-    --border: #374151;
+    --text-muted: #9aa3af;
+    --border: #232a35;
+    --border-soft: #1b212b;
+
+    --accent-soft: #113322;
+    --commute-soft: #1e213f;
+    --food-soft: #113322;
+    --energy-soft: #3a2c0f;
+    --warning-soft: #3a2c0f;
+    --danger-soft: #3a1717;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
   }
 }
 
@@ -30,6 +61,14 @@ body {
 }
 
 h1,
-h2 {
+h2,
+h3 {
   color: var(--text);
+}
+
+code {
+  background: var(--border-soft);
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+  font-size: 0.85em;
 }

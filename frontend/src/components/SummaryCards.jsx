@@ -7,14 +7,22 @@ export default function SummaryCards({ summary }) {
     );
   }
 
-  const { average_kg_co2e_per_day, category_totals, days_logged } = summary;
+  const { average_kg_co2e_per_day, category_totals, days_logged, trend } = summary;
   const biggest = Object.entries(category_totals).sort((a, b) => b[1] - a[1])[0];
+
+  const totalLow = trend.reduce((sum, t) => sum + t.total_low_kg_co2e, 0);
+  const totalHigh = trend.reduce((sum, t) => sum + t.total_high_kg_co2e, 0);
+  const avgLow = round1(totalLow / days_logged);
+  const avgHigh = round1(totalHigh / days_logged);
 
   return (
     <div className="card summary-cards">
       <div className="stat">
         <span className="stat-value">{average_kg_co2e_per_day}</span>
         <span className="stat-label">kg CO2e / day (avg)</span>
+        <span className="stat-sub">
+          {avgLow}&ndash;{avgHigh} kg range
+        </span>
       </div>
       <div className="stat">
         <span className="stat-value">{days_logged}</span>
@@ -34,4 +42,8 @@ export default function SummaryCards({ summary }) {
       </div>
     </div>
   );
+}
+
+function round1(n) {
+  return Math.round(n * 10) / 10;
 }

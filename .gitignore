@@ -1,11 +1,11 @@
 # Backend (Python)
 backend/venv/
-backend/__pycache__/
-backend/app/__pycache__/
 backend/carbon.db
 backend/uvicorn.out.log
 backend/uvicorn.err.log
+**/__pycache__/
 *.pyc
+.pytest_cache/
 
 # Frontend (Node)
 frontend/node_modules/

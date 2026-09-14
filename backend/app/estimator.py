@@ -1,55 +1,71 @@
 """
 Core estimation logic: turns a (possibly incomplete) day's raw log into
-a consistent kg CO2e figure per category.
+a consistent, uncertainty-aware kg CO2e figure per category, for a
+given regional emission-factor profile.
 
-This is the piece the problem statement's "Core Challenge" is actually
-about, so it's kept in its own module with no FastAPI/DB imports --
-a future team should be able to unit-test or replace this file alone.
+Kept free of FastAPI/DB imports so it can be unit-tested or swapped
+out on its own (see tests/test_estimator.py).
 
-Strategy for a missing field on a given day:
-  1. "logged"    -- the user gave enough info this category can be computed directly.
-  2. "estimated" -- missing, but the user has enough personal history in this
-                    category that we can fall back to THEIR average instead of
-                    guessing blind. Keeps trends meaningful instead of
-                    punishing a day with zeros just because logging was partial.
-  3. "default"   -- no personal history exists yet (e.g. first-ever log), so we
-                    fall back to a population average just so the number isn't
-                    misleadingly zero.
+Source taxonomy (most to least certain):
+  "observed"          -- an exact user-provided number (typed km, typed kWh,
+                          a meter reading pulled off a receipt).
+  "inferred"          -- derived from a channel that had to guess a gap, e.g.
+                          natural-language/voice logging that named a mode
+                          ("drove to work") without a distance, or an OCR'd
+                          fuel receipt converted from litres to km.
+  "personal_estimate" -- nothing logged this day, but the user has enough of
+                          their OWN recent history in this category to fall
+                          back to their personal average instead of guessing
+                          blind or zeroing it out.
+  "population_default" -- no data logged AND no personal history yet either
+                          (e.g. day one), so a population-average constant is
+                          used just so the number isn't misleadingly zero.
 
-Every result carries its `source` so the frontend can visually distinguish
-real data from inferred data rather than presenting a guess as fact.
+Each tier carries a rough uncertainty band, and the whole day's total
+combines them via root-sum-of-squares (independent-error assumption)
+rather than naive addition, so the range tightens as more categories
+are directly observed.
 """
 
+import math
 from dataclasses import dataclass
 from statistics import mean
 from typing import Iterable, Literal, Optional
 
 from .emission_factors import (
-    COMMUTE_FACTORS_KG_PER_KM,
     DIET_FACTORS_KG_PER_DAY,
-    ENERGY_FACTOR_KG_PER_KWH,
     ENERGY_LEVEL_KWH,
-    POPULATION_DEFAULT_KG_PER_DAY,
+    get_region,
+    population_defaults_kg_per_day,
 )
 
-# How many of the user's own most-recent data points to average for
-# the "estimated" fallback. Keeps the personal average responsive to
-# recent lifestyle changes rather than drifting on months-old data.
+# How many of the user's own most-recent (by date) data points to
+# average for the "personal_estimate" fallback.
 ROLLING_WINDOW = 14
 
-Source = Literal["logged", "estimated", "default"]
+Source = Literal["observed", "inferred", "personal_estimate", "population_default"]
+
+UNCERTAINTY_PCT = {
+    "observed": 0.05,
+    "inferred": 0.20,
+    "personal_estimate": 0.30,
+    "population_default": 0.50,
+}
 
 
 @dataclass
 class CategoryResult:
     kg_co2e: float
     source: Source
+    uncertainty_pct: float
+    low_kg_co2e: float
+    high_kg_co2e: float
 
 
-def _raw_commute_kg(mode: Optional[str], distance_km: Optional[float]) -> Optional[float]:
+def _raw_commute_kg(region: dict, mode: Optional[str], distance_km: Optional[float]) -> Optional[float]:
     if mode is None or distance_km is None:
         return None
-    return COMMUTE_FACTORS_KG_PER_KM[mode] * distance_km
+    return region["commute_kg_per_km"][mode] * distance_km
 
 
 def _raw_food_kg(diet_type: Optional[str]) -> Optional[float]:
@@ -58,61 +74,105 @@ def _raw_food_kg(diet_type: Optional[str]) -> Optional[float]:
     return DIET_FACTORS_KG_PER_DAY[diet_type]
 
 
-def _raw_energy_kg(energy_kwh: Optional[float], energy_level: Optional[str]) -> Optional[float]:
+def _raw_energy_kg(region: dict, energy_kwh: Optional[float], energy_level: Optional[str]) -> Optional[float]:
     if energy_kwh is not None:
-        return energy_kwh * ENERGY_FACTOR_KG_PER_KWH
+        return energy_kwh * region["energy_kg_per_kwh"]
     if energy_level is not None:
-        return ENERGY_LEVEL_KWH[energy_level] * ENERGY_FACTOR_KG_PER_KWH
+        return ENERGY_LEVEL_KWH[energy_level] * region["energy_kg_per_kwh"]
     return None
 
 
-def _resolve(raw: Optional[float], personal_history: Iterable[float], category: str) -> CategoryResult:
-    """`personal_history` must already be most-recent-first; only the
-    first ROLLING_WINDOW values are used."""
-    if raw is not None:
-        return CategoryResult(kg_co2e=round(raw, 2), source="logged")
-
-    history = list(personal_history)[:ROLLING_WINDOW]
-    if history:
-        return CategoryResult(kg_co2e=round(mean(history), 2), source="estimated")
-
+def _band(kg: float, source: Source) -> CategoryResult:
+    pct = UNCERTAINTY_PCT[source]
+    delta = kg * pct
     return CategoryResult(
-        kg_co2e=round(POPULATION_DEFAULT_KG_PER_DAY[category], 2), source="default"
+        kg_co2e=round(kg, 2),
+        source=source,
+        uncertainty_pct=pct,
+        low_kg_co2e=round(max(kg - delta, 0), 2),
+        high_kg_co2e=round(kg + delta, 2),
     )
 
 
-def estimate_entry(entry, history: Iterable) -> dict:
+def _resolve(
+    raw: Optional[float],
+    inferred: bool,
+    personal_history: Iterable[float],
+    default_kg: float,
+) -> CategoryResult:
+    """`personal_history` must already be most-recent-date-first; only the
+    first ROLLING_WINDOW values are used.
+
+    `inferred` marks that `raw` (if not None) came from a channel that had
+    to fill a gap itself (NL/voice/receipt) rather than an exact figure.
+    """
+    if raw is not None:
+        return _band(raw, "inferred" if inferred else "observed")
+
+    history = list(personal_history)[:ROLLING_WINDOW]
+    if history:
+        return _band(mean(history), "personal_estimate")
+
+    return _band(default_kg, "population_default")
+
+
+def estimate_entry(entry, history: Iterable, region_code: str) -> dict:
     """
     entry: the LogEntry being estimated (ORM object or anything with the
-           same attribute names).
-    history: other LogEntry rows for this user, most-recent-date-first,
-             used to build the personal rolling average per category.
-             `entry` itself should not be included.
+           same attribute names, plus an optional `inferred_fields` set/dict
+           naming which of {"commute","food","energy"} were filled by a
+           gap-filling channel rather than given exactly).
+    history: other LogEntry rows for this user, most-recent-date-first.
+    region_code: which regional factor profile to compute against.
     """
+    region = get_region(region_code)
     history = list(history)
+    inferred_fields = getattr(entry, "inferred_fields", None) or set()
 
     commute_history = [
         v
         for h in history
-        if (v := _raw_commute_kg(h.commute_mode, h.commute_distance_km)) is not None
+        if (v := _raw_commute_kg(region, h.commute_mode, h.commute_distance_km)) is not None
     ]
     food_history = [v for h in history if (v := _raw_food_kg(h.diet_type)) is not None]
     energy_history = [
         v
         for h in history
-        if (v := _raw_energy_kg(h.energy_kwh, h.energy_level)) is not None
+        if (v := _raw_energy_kg(region, h.energy_kwh, h.energy_level)) is not None
     ]
 
+    defaults = population_defaults_kg_per_day(region_code)
+
     commute = _resolve(
-        _raw_commute_kg(entry.commute_mode, entry.commute_distance_km),
+        _raw_commute_kg(region, entry.commute_mode, entry.commute_distance_km),
+        "commute" in inferred_fields,
         commute_history,
-        "commute",
+        defaults["commute"],
     )
-    food = _resolve(_raw_food_kg(entry.diet_type), food_history, "food")
+    food = _resolve(
+        _raw_food_kg(entry.diet_type), "food" in inferred_fields, food_history, defaults["food"]
+    )
     energy = _resolve(
-        _raw_energy_kg(entry.energy_kwh, entry.energy_level), energy_history, "energy"
+        _raw_energy_kg(region, entry.energy_kwh, entry.energy_level),
+        "energy" in inferred_fields,
+        energy_history,
+        defaults["energy"],
     )
 
     total = round(commute.kg_co2e + food.kg_co2e + energy.kg_co2e, 2)
+    combined_uncertainty = math.sqrt(
+        sum((c.kg_co2e * c.uncertainty_pct) ** 2 for c in (commute, food, energy))
+    )
+    total_low = round(max(total - combined_uncertainty, 0), 2)
+    total_high = round(total + combined_uncertainty, 2)
 
-    return {"commute": commute, "food": food, "energy": energy, "total_kg_co2e": total}
+    return {
+        "commute": commute,
+        "food": food,
+        "energy": energy,
+        "total_kg_co2e": total,
+        "total_low_kg_co2e": total_low,
+        "total_high_kg_co2e": total_high,
+        "region": region_code,
+        "factor_version": region["version"],
+    }
