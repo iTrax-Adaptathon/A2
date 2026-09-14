@@ -1,0 +1,20 @@
+# Backend (Python)
+backend/venv/
+backend/__pycache__/
+backend/app/__pycache__/
+backend/carbon.db
+backend/uvicorn.out.log
+backend/uvicorn.err.log
+*.pyc
+
+# Frontend (Node)
+frontend/node_modules/
+frontend/dist/
+frontend/vite.log
+
+# Word lock files
+~$*.docx
+
+# OS
+.DS_Store
+Thumbs.db
