@@ -1,15 +1,4 @@
-"""
-Flags logged days whose total footprint deviates sharply from the
-user's own recent pattern.
 
-Uses a "modified z-score" (median + MAD, not mean + stdev): with mean/
-stdev, a single huge day -- a long-haul flight -- inflates the stdev
-enough that the same huge day no longer looks abnormal by the metric
-it should trigger. Median and MAD (median absolute deviation) are
-robust to that: a handful of outliers barely move the median, so the
-outliers still register as outliers. Standard technique for exactly
-this "one big spike shouldn't hide itself" problem.
-"""
 
 from dataclasses import dataclass
 from datetime import date as date_type

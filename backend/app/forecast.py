@@ -1,13 +1,3 @@
-"""
-Projects the next N days' total footprint from the logged trend using
-simple linear regression over day-index vs. total kg CO2e. No ML
-dependency -- plain least squares.
-
-With fewer than 3 data points a flat (average) forecast is used
-instead, since a 1-2 point regression is not meaningful. Uncertainty
-widens with distance from the last known day, reflecting that
-near-term projections are more trustworthy than far ones.
-"""
 
 from dataclasses import dataclass
 from datetime import date as date_type

@@ -1,11 +1,4 @@
-"""
-Given a persisted daily budget target (see models.Budget), computes
-progress against the logged trend: days tracked, days under budget,
-current and best streaks.
 
-Takes plain data rather than the ORM row directly, so it's easy to
-test and easy to extend later (weekly/monthly periods, for example).
-"""
 
 from dataclasses import dataclass
 from datetime import date as date_type
