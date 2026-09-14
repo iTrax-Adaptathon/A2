@@ -1,4 +1,5 @@
 from datetime import date as date_type
+from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,6 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import models, schemas
+from .anomaly import detect_anomalies
+from .budget import compute_status as compute_budget_status
 from .database import Base, SessionLocal, engine
 from .emission_factors import (
     DIET_FACTORS_KG_PER_DAY,
@@ -20,6 +23,7 @@ from .forecast import forecast as run_forecast
 from .insights import generate_insights
 from .nlp_parser import parse_text
 from .optimizer import optimize as run_optimize
+from .patterns import weekday_breakdown
 
 Base.metadata.create_all(bind=engine)
 
@@ -42,6 +46,17 @@ def _db() -> Session:
 def _history_for(entry: models.LogEntry, all_entries: list[models.LogEntry]) -> list[models.LogEntry]:
     # Most-recent-date-first, as estimate_entry's rolling average expects.
     return sorted((e for e in all_entries if e.id != entry.id), key=lambda e: e.date, reverse=True)
+
+
+def _all_entries(db: Session) -> list[models.LogEntry]:
+    return db.execute(select(models.LogEntry)).scalars().all()
+
+
+def _trend(db: Session) -> list[schemas.LogEntryOut]:
+    """The full logged trend, ascending by date, fully estimated."""
+    all_entries = _all_entries(db)
+    ordered = sorted(all_entries, key=lambda e: e.date)
+    return [_to_out(e, all_entries) for e in ordered]
 
 
 def _to_out(entry: models.LogEntry, all_entries: list[models.LogEntry]) -> schemas.LogEntryOut:
@@ -128,9 +143,7 @@ def upsert_log(payload: schemas.LogEntryIn):
 def list_logs():
     db = _db()
     try:
-        all_entries = db.execute(select(models.LogEntry)).scalars().all()
-        ordered = sorted(all_entries, key=lambda e: e.date)
-        return [_to_out(e, all_entries) for e in ordered]
+        return _trend(db)
     finally:
         db.close()
 
@@ -170,9 +183,7 @@ def delete_log(log_date: date_type):
 def summary():
     db = _db()
     try:
-        all_entries = db.execute(select(models.LogEntry)).scalars().all()
-        ordered = sorted(all_entries, key=lambda e: e.date)
-        trend = [_to_out(e, all_entries) for e in ordered]
+        trend = _trend(db)
 
         days_logged = len(trend)
         total = round(sum(t.total_kg_co2e for t in trend), 2)
@@ -281,9 +292,7 @@ def simulate(payload: schemas.SimulateRequest):
 def forecast_endpoint(days: int = 7):
     db = _db()
     try:
-        all_entries = db.execute(select(models.LogEntry)).scalars().all()
-        ordered = sorted(all_entries, key=lambda e: e.date)
-        trend = [_to_out(e, all_entries) for e in ordered]
+        trend = _trend(db)
         result = run_forecast(trend, days=days)
         return schemas.ForecastOut(
             method=result["method"],
@@ -300,7 +309,7 @@ def forecast_endpoint(days: int = 7):
 def optimize_endpoint(payload: schemas.OptimizeRequest):
     db = _db()
     try:
-        all_entries = db.execute(select(models.LogEntry)).scalars().all()
+        all_entries = _all_entries(db)
         result = run_optimize(all_entries, payload.target_kg_per_day, payload.region)
         return schemas.OptimizeOut(
             baseline_kg_per_day=result["baseline_kg_per_day"],
@@ -319,13 +328,109 @@ def optimize_endpoint(payload: schemas.OptimizeRequest):
 def insights_endpoint(region: str = "IN"):
     db = _db()
     try:
-        all_entries = db.execute(select(models.LogEntry)).scalars().all()
-        ordered = sorted(all_entries, key=lambda e: e.date)
-        trend = [_to_out(e, all_entries) for e in ordered]
+        trend = _trend(db)
+        all_entries = _all_entries(db)
         raw = generate_insights(trend, all_entries, region)
         return schemas.InsightsOut(
             generated_from_days=len(trend),
             insights=[schemas.Insight(**i) for i in raw],
+        )
+    finally:
+        db.close()
+
+
+# --------------------------------------------------------------- anomalies (7)
+
+@app.get("/api/anomalies", response_model=schemas.AnomaliesOut)
+def anomalies_endpoint():
+    db = _db()
+    try:
+        trend = _trend(db)
+        anomalies = detect_anomalies(trend)
+        return schemas.AnomaliesOut(
+            baseline_days=len(trend),
+            anomalies=[schemas.AnomalyOut(**vars(a)) for a in anomalies],
+        )
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------- patterns (9)
+
+@app.get("/api/patterns", response_model=schemas.PatternsOut)
+def patterns_endpoint():
+    db = _db()
+    try:
+        trend = _trend(db)
+        result = weekday_breakdown(trend)
+        return schemas.PatternsOut(
+            enough_data=result["enough_data"],
+            weekdays=[schemas.WeekdayAverageOut(**vars(w)) for w in result["weekdays"]],
+            highest=schemas.WeekdayAverageOut(**vars(result["highest"])) if result["highest"] else None,
+            lowest=schemas.WeekdayAverageOut(**vars(result["lowest"])) if result["lowest"] else None,
+        )
+    finally:
+        db.close()
+
+
+# ------------------------------------------------------------------ budget (13)
+
+@app.post("/api/budget", response_model=schemas.BudgetOut)
+def set_budget(payload: schemas.BudgetIn):
+    """Replaces the (singleton) active budget, starting fresh from today --
+    see models.Budget for why this doesn't keep budget history."""
+    db = _db()
+    try:
+        db.query(models.Budget).delete()
+        budget = models.Budget(target_kg_per_day=payload.target_kg_per_day, created_date=date_type.today())
+        db.add(budget)
+        db.commit()
+        db.refresh(budget)
+        return schemas.BudgetOut(target_kg_per_day=budget.target_kg_per_day, created_date=budget.created_date)
+    finally:
+        db.close()
+
+
+@app.get("/api/budget", response_model=Optional[schemas.BudgetOut])
+def get_budget():
+    db = _db()
+    try:
+        budget = db.execute(select(models.Budget)).scalars().first()
+        if budget is None:
+            return None
+        return schemas.BudgetOut(target_kg_per_day=budget.target_kg_per_day, created_date=budget.created_date)
+    finally:
+        db.close()
+
+
+@app.delete("/api/budget")
+def clear_budget():
+    db = _db()
+    try:
+        db.query(models.Budget).delete()
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+@app.get("/api/budget/status", response_model=schemas.BudgetStatusOut)
+def budget_status():
+    db = _db()
+    try:
+        budget = db.execute(select(models.Budget)).scalars().first()
+        if budget is None:
+            raise HTTPException(status_code=404, detail="No budget set yet")
+        trend = _trend(db)
+        result = compute_budget_status(budget.target_kg_per_day, budget.created_date, trend)
+        return schemas.BudgetStatusOut(
+            target_kg_per_day=result["target_kg_per_day"],
+            created_date=result["created_date"],
+            days_tracked=result["days_tracked"],
+            days_under_budget=result["days_under_budget"],
+            current_streak=result["current_streak"],
+            best_streak=result["best_streak"],
+            daily_status=[schemas.DailyBudgetStatus(**vars(d)) for d in result["daily_status"]],
         )
     finally:
         db.close()

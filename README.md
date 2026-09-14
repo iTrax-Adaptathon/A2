@@ -32,10 +32,10 @@ contributors to a personal footprint that a 3-category model misses:
   high), the same style as energy usage, since most people don't log every
   purchase.
 
-Of the fifteen possible module ideas for this problem, this Sprint 1 build
-**fully implements eight** end-to-end (not mocked) and **previews the
-remaining seven** as honest "Coming in Sprint 2" cards in the Roadmap tab —
-described, not faked with placeholder data.
+Of the fifteen possible module ideas for this problem, this build **fully
+implements twelve** end-to-end (not mocked) and **previews the remaining
+three** as honest "Coming in Sprint 2" cards in the Roadmap tab — described,
+not faked with placeholder data.
 
 | # | Module | Status |
 |---|---|---|
@@ -44,14 +44,14 @@ described, not faked with placeholder data.
 | 3 | Carbon Digital Twin | Preview |
 | 4 | Uncertainty-aware CO2 estimates | **Built** |
 | 5 | Observed / inferred / estimated distinction | **Built** |
-| 6 | Smart missing-data reconstruction (advanced) | Preview (basic version built, see below) |
-| 7 | Carbon anomaly detection | Preview |
+| 6 | Smart missing-data reconstruction (weekday-aware) | **Built** |
+| 7 | Carbon anomaly detection | **Built** |
 | 8 | Personal carbon forecasting | **Built** |
-| 9 | Behavioral pattern analysis | Preview |
+| 9 | Behavioral pattern analysis | **Built** |
 | 10 | What-if simulation engine | **Built** |
 | 11 | Constraint-based carbon optimization | **Built** |
 | 12 | Carbon ROI ranking | Preview |
-| 13 | Personalized carbon budget | Preview |
+| 13 | Personalized carbon budget | **Built** |
 | 14 | Carbon experiments | Preview |
 | 15 | AI Carbon Analyst | **Built** |
 
@@ -69,8 +69,15 @@ priority order:
    logging named a mode ("drove to work") without a distance, or an OCR'd
    fuel receipt was converted from litres to km.
 3. **`personal_estimate`** — nothing logged this day, but the user has
-   enough of their *own* recent history (last 14 points) in this category to
-   fall back to their personal average instead of guessing blind.
+   enough of their *own* recent history in this category to fall back to
+   their personal average instead of guessing blind. This tier is itself
+   **weekday-aware** (item 6): it first checks whether at least 2 same-
+   weekday data points exist within the last 60 entries (a missing Tuesday
+   looks at other Tuesdays first) and only falls back to a flat rolling
+   average of the last 14 points when there isn't enough weekday-specific
+   history yet. The `basis` field on each estimate (`weekday_average` vs
+   `rolling_average`) records which was used — visible as a badge qualifier
+   in the history table.
 4. **`population_default`** — no data and no personal history yet either
    (day one), so a population-average constant is used.
 
@@ -137,10 +144,34 @@ rather than leaving it looking broken.
   fixed catalog, not a general solver — documented as an extension seam for
   real multi-constraint optimization.
 - **AI Carbon Analyst** (`backend/app/insights.py`) — a rule-based engine
-  that reads the trend, forecast, and optimizer output and narrates it in
-  plain language (trend direction, biggest contributor, data-quality,
-  a quick-win recommendation). No external LLM call, so it needs no API key;
-  swapping it for a real LLM-backed analyst is a contained, one-file change.
+  that reads the trend, forecast, optimizer, anomaly, and pattern output and
+  narrates it all in plain language (trend direction, biggest contributor,
+  data-quality, a flagged anomaly, a weekday pattern, a quick-win
+  recommendation). No external LLM call, so it needs no API key; swapping it
+  for a real LLM-backed analyst is a contained, one-file change.
+
+### Anomaly detection, behavioral patterns, personalized budget (items 7, 9, 13)
+
+- **Anomaly detection** (`backend/app/anomaly.py`) — flags days whose total
+  deviates sharply from the user's normal pattern, using a *modified
+  z-score* (median + median-absolute-deviation) rather than mean/stdev.
+  This matters specifically because of flights: a single 700kg flight day
+  would inflate a mean/stdev-based threshold enough to make that same day
+  no longer look abnormal by the metric meant to catch it. Median/MAD is
+  robust to that — a few outliers barely move the median. Surfaced via
+  `GET /api/anomalies`, a Dashboard card, and the AI Analyst.
+- **Behavioral pattern analysis** (`backend/app/patterns.py`) — breaks the
+  trend down by weekday to show which days run highest/lowest. This is the
+  same weekday-grouping the estimator uses internally for reconstruction
+  (item 6) — the Dashboard's "Weekly pattern" card is effectively "show your
+  work" for a strategy already running under the hood.
+- **Personalized carbon budget** (`backend/app/budget.py`, its own Budget
+  tab) — unlike the Optimizer's ad-hoc, one-off target, this is a
+  **persisted** singleton target (`models.Budget`) tracked over time: days
+  under/over budget, current streak, best streak, rendered as a
+  contribution-graph-style day strip. Setting a new budget starts fresh
+  from that day forward rather than retroactively judging earlier days
+  against a target that didn't exist yet.
 
 ## Architecture
 
@@ -148,14 +179,17 @@ rather than leaving it looking broken.
 backend/                  FastAPI + SQLite
   app/
     emission_factors.py   Versioned regional factor registry
-    estimator.py           Core per-day estimation (observed/inferred/estimate/default + uncertainty)
+    estimator.py           Core per-day estimation (observed/inferred/estimate/default + uncertainty + weekday reconstruction)
     nlp_parser.py           Text -> structured fields (NL, voice transcript, OCR text)
     forecast.py              Linear-regression forecasting
     optimizer.py              Constraint-based greedy action ranking
-    insights.py                Rule-based "AI Analyst" narration
-    models.py, schemas.py       DB model / request-response shapes
-    main.py                      Routes
-  tests/                    48 pytest cases across estimator, parser, forecast, optimizer
+    anomaly.py                 Median/MAD anomaly detection
+    patterns.py                 Weekday behavioral breakdown
+    budget.py                    Persisted budget streak/status math
+    insights.py                   Rule-based "AI Analyst" narration
+    models.py, schemas.py          DB models / request-response shapes
+    main.py                         Routes
+  tests/                    63 pytest cases across every module above
   requirements.txt / requirements-dev.txt
 
 frontend/                 React + Vite
@@ -167,11 +201,13 @@ frontend/                 React + Vite
       LogPanel.jsx                 Tabs: Form / Natural language / Voice / Receipt
       LogForm.jsx, TextChannelLogger.jsx  The four logging channels
       SummaryCards.jsx, TrendsChart.jsx, HistoryTable.jsx  Dashboard
+      PatternsCard.jsx, AnomaliesCard.jsx  Dashboard: weekday breakdown, flagged days
       InsightsFeed.jsx               AI Analyst feed
       WhatIfSimulator.jsx             Live hypothetical-day simulator
-      OptimizerPanel.jsx               Budget-target optimizer UI
-      RoadmapPreview.jsx                Honest previews of the 7 unbuilt modules
-      SourceBadge.jsx                    Shared observed/inferred/estimate/default badge
+      OptimizerPanel.jsx               Ad-hoc budget-target optimizer UI
+      BudgetPanel.jsx                    Persisted budget + streak tracker
+      RoadmapPreview.jsx                  Honest previews of the 3 unbuilt modules
+      SourceBadge.jsx                      Shared source-taxonomy badge (+ weekday/flat basis)
 ```
 
 No auth, single implicit user, SQLite file on disk. Optimized for the next
@@ -223,6 +259,10 @@ pytest tests/ -v
 | GET | `/api/forecast?days=7` | Projected footprint for the next N days |
 | POST | `/api/optimize` | Ranked lifestyle changes to hit a target kg/day |
 | GET | `/api/insights` | AI Analyst's narrated insights |
+| GET | `/api/anomalies` | Days flagged by median/MAD deviation |
+| GET | `/api/patterns` | Weekday averages, highest/lowest |
+| POST/GET/DELETE | `/api/budget` | Set / view / clear the persisted budget |
+| GET | `/api/budget/status` | Streak + under/over-budget status per day |
 
 ## Emission factors
 
@@ -232,16 +272,18 @@ scientific/regulatory carbon accounting.
 
 ## Where a Sprint 2 team would likely start
 
-- **Auth / multi-user.** Everything currently assumes one implicit user.
-- **The 7 Roadmap modules** (Digital Twin, day-of-week-aware reconstruction,
-  anomaly detection, behavioral patterns, cost-weighted ROI ranking, a
-  persisted budget with streaks/alerts, structured experiments) — see the
-  Roadmap tab in the app for what each would need.
+- **Auth / multi-user.** Everything currently assumes one implicit user
+  (including the Budget singleton — it'd need a user_id column first).
+- **The 3 remaining Roadmap modules** (Digital Twin, cost-weighted ROI
+  ranking, structured experiments) — see the Roadmap tab for what each
+  would need and why it wasn't in scope.
 - **Swap the rule-based NL parser / AI Analyst for a real LLM call** — both
   are isolated modules (`nlp_parser.py`, `insights.py`) designed for exactly
   this swap.
-- **Smarter imputation** in `estimator.py`'s rolling average (currently a
-  flat mean of the last 14 points).
+- **Budget history.** `models.Budget` is a singleton by design (see its
+  docstring) — a team wanting to compare past budget periods would need to
+  stop deleting the old row on update and add a `created_date` range query
+  instead.
 
 ---
 🤖 Generated with [Claude Code](https://claude.com/claude-code)

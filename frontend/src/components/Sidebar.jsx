@@ -4,6 +4,7 @@ const SECTIONS = [
   { id: "insights", label: "AI Analyst", icon: "🤖" },
   { id: "whatif", label: "What-If", icon: "🎲" },
   { id: "optimize", label: "Optimize", icon: "🎯" },
+  { id: "budget", label: "Budget", icon: "💰" },
   { id: "roadmap", label: "Roadmap", icon: "🗺️" },
 ];
 

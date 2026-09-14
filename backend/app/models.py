@@ -51,3 +51,20 @@ class LogEntry(Base):
     @inferred_fields.setter
     def inferred_fields(self, value):
         self.inferred_fields_raw = ",".join(sorted(value)) if value else None
+
+
+class Budget(Base):
+    """
+    Personalized carbon budget (item 13). A singleton row -- setting a
+    new budget replaces the old one rather than keeping history, so
+    "current budget" is always just "the one row here". Streak/status
+    math (see budget.py) only looks at days on/after `created_date`,
+    so replacing the budget naturally resets progress rather than
+    retroactively judging days against a target that didn't exist yet.
+    """
+
+    __tablename__ = "budgets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    target_kg_per_day = Column(Float, nullable=False)
+    created_date = Column(Date, nullable=False)

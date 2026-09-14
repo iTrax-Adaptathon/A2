@@ -95,6 +95,7 @@ class CategoryEstimate(BaseModel):
     uncertainty_pct: float
     low_kg_co2e: float
     high_kg_co2e: float
+    basis: Optional[Literal["weekday_average", "rolling_average"]] = None
 
 
 class LogEntryOut(BaseModel):
@@ -262,3 +263,62 @@ class Insight(BaseModel):
 class InsightsOut(BaseModel):
     generated_from_days: int
     insights: list[Insight]
+
+
+# --------------------------------------------------------------- anomalies (7)
+
+class AnomalyOut(BaseModel):
+    date: date_type
+    total_kg_co2e: float
+    modified_z_score: float
+    direction: Literal["high", "low"]
+    primary_category: str
+    message: str
+
+
+class AnomaliesOut(BaseModel):
+    baseline_days: int
+    anomalies: list[AnomalyOut]
+
+
+# --------------------------------------------------------------- patterns (9)
+
+class WeekdayAverageOut(BaseModel):
+    weekday: int
+    label: str
+    average_kg_co2e: float
+    days_sampled: int
+
+
+class PatternsOut(BaseModel):
+    enough_data: bool
+    weekdays: list[WeekdayAverageOut]
+    highest: Optional[WeekdayAverageOut] = None
+    lowest: Optional[WeekdayAverageOut] = None
+
+
+# ----------------------------------------------------------------- budget (13)
+
+class BudgetIn(BaseModel):
+    target_kg_per_day: float
+
+
+class BudgetOut(BaseModel):
+    target_kg_per_day: float
+    created_date: date_type
+
+
+class DailyBudgetStatus(BaseModel):
+    date: date_type
+    total_kg_co2e: float
+    under_budget: bool
+
+
+class BudgetStatusOut(BaseModel):
+    target_kg_per_day: float
+    created_date: date_type
+    days_tracked: int
+    days_under_budget: int
+    current_streak: int
+    best_streak: int
+    daily_status: list[DailyBudgetStatus]

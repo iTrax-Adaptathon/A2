@@ -4,6 +4,8 @@ Run with: pytest (from backend/, with dev deps installed)
 """
 
 from dataclasses import dataclass, field
+from datetime import date as date_type
+from datetime import timedelta
 from typing import Optional
 
 import pytest
@@ -15,14 +17,21 @@ from app.emission_factors import (
     get_region,
     population_defaults_kg_per_day,
 )
-from app.estimator import ROLLING_WINDOW, estimate_entry
+from app.estimator import ROLLING_WINDOW, WEEKDAY_MIN_SAMPLES, estimate_entry
 
 REGION = "IN"
+A_MONDAY = date_type(2026, 1, 5)  # arbitrary fixed anchor, confirmed a Monday
 
 
 @dataclass
 class FakeEntry:
-    """Stand-in for a LogEntry row -- estimate_entry only reads attributes."""
+    """Stand-in for a LogEntry row -- estimate_entry only reads attributes.
+
+    `date` defaults to the same fixed day for every instance so tests that
+    don't care about weekday-aware reconstruction get the old flat-average
+    behavior for free (every history item trivially matches "today"'s
+    weekday when they're all literally the same date).
+    """
 
     commute_mode: Optional[str] = None
     commute_distance_km: Optional[float] = None
@@ -32,6 +41,7 @@ class FakeEntry:
     flight_km: Optional[float] = None
     flight_haul: Optional[str] = None
     shopping_level: Optional[str] = None
+    date: date_type = A_MONDAY
     inferred_fields: set = field(default_factory=set)
 
 
@@ -108,6 +118,47 @@ def test_missing_category_with_history_falls_back_to_personal_average():
     )
     assert result["food"].source == "personal_estimate"
     assert result["food"].kg_co2e == expected
+
+
+def test_weekday_match_is_preferred_over_flat_average_when_enough_samples():
+    """A missing Monday should reconstruct from other Mondays, not get
+    diluted by unrelated weekdays, once there are enough Monday samples."""
+    entry = FakeEntry(date=A_MONDAY, commute_mode="bus", commute_distance_km=5)  # diet blank
+    history = [
+        FakeEntry(date=A_MONDAY - timedelta(days=7), diet_type="vegan"),  # last Monday
+        FakeEntry(date=A_MONDAY - timedelta(days=14), diet_type="vegan"),  # Monday before that
+        FakeEntry(date=A_MONDAY - timedelta(days=1), diet_type="meat_heavy"),  # Sunday
+        FakeEntry(date=A_MONDAY - timedelta(days=2), diet_type="meat_heavy"),  # Saturday
+        FakeEntry(date=A_MONDAY - timedelta(days=3), diet_type="meat_heavy"),  # Friday
+    ]
+    result = estimate_entry(entry, history=history, region_code=REGION)
+
+    assert result["food"].source == "personal_estimate"
+    assert result["food"].basis == "weekday_average"
+    assert result["food"].kg_co2e == DIET_FACTORS_KG_PER_DAY["vegan"]  # mean of the two Mondays only
+
+
+def test_falls_back_to_rolling_average_below_weekday_min_samples():
+    assert WEEKDAY_MIN_SAMPLES >= 2  # this test assumes a single match isn't enough
+    entry = FakeEntry(date=A_MONDAY, commute_mode="bus", commute_distance_km=5)
+    history = [
+        FakeEntry(date=A_MONDAY - timedelta(days=7), diet_type="vegan"),  # only one Monday
+        FakeEntry(date=A_MONDAY - timedelta(days=1), diet_type="meat_heavy"),
+        FakeEntry(date=A_MONDAY - timedelta(days=2), diet_type="meat_heavy"),
+    ]
+    result = estimate_entry(entry, history=history, region_code=REGION)
+
+    expected_flat = round(
+        (
+            DIET_FACTORS_KG_PER_DAY["vegan"]
+            + 2 * DIET_FACTORS_KG_PER_DAY["meat_heavy"]
+        )
+        / 3,
+        2,
+    )
+    assert result["food"].source == "personal_estimate"
+    assert result["food"].basis == "rolling_average"
+    assert result["food"].kg_co2e == expected_flat
 
 
 def test_flights_default_to_zero_even_with_flight_history_not_a_smeared_average():

@@ -25,3 +25,13 @@ export const optimize = (target_kg_per_day, region) =>
 
 export const getInsights = (region) =>
   client.get("/api/insights", { params: { region } }).then((r) => r.data);
+
+export const getAnomalies = () => client.get("/api/anomalies").then((r) => r.data);
+
+export const getPatterns = () => client.get("/api/patterns").then((r) => r.data);
+
+export const getBudget = () => client.get("/api/budget").then((r) => r.data);
+export const setBudget = (target_kg_per_day) =>
+  client.post("/api/budget", { target_kg_per_day }).then((r) => r.data);
+export const clearBudget = () => client.delete("/api/budget").then((r) => r.data);
+export const getBudgetStatus = () => client.get("/api/budget/status").then((r) => r.data);

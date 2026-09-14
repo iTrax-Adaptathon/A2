@@ -52,13 +52,13 @@ export default function HistoryTable({ trend, onChanged }) {
                   <span className="channel-pill">{CHANNEL_LABEL[entry.channel] || entry.channel}</span>
                 </td>
                 <td>
-                  {entry.commute.kg_co2e} kg <SourceBadge source={entry.commute.source} />
+                  {entry.commute.kg_co2e} kg <SourceBadge source={entry.commute.source} basis={entry.commute.basis} />
                 </td>
                 <td>
-                  {entry.food.kg_co2e} kg <SourceBadge source={entry.food.source} />
+                  {entry.food.kg_co2e} kg <SourceBadge source={entry.food.source} basis={entry.food.basis} />
                 </td>
                 <td>
-                  {entry.energy.kg_co2e} kg <SourceBadge source={entry.energy.source} />
+                  {entry.energy.kg_co2e} kg <SourceBadge source={entry.energy.source} basis={entry.energy.basis} />
                 </td>
                 <td>
                   {entry.flights.kg_co2e > 0 ? (
@@ -70,7 +70,7 @@ export default function HistoryTable({ trend, onChanged }) {
                   )}
                 </td>
                 <td>
-                  {entry.shopping.kg_co2e} kg <SourceBadge source={entry.shopping.source} />
+                  {entry.shopping.kg_co2e} kg <SourceBadge source={entry.shopping.source} basis={entry.shopping.basis} />
                 </td>
                 <td>
                   <strong>{entry.total_kg_co2e} kg</strong>

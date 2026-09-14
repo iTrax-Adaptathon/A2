@@ -28,8 +28,11 @@ export default function LogForm({ reference, region, onSaved }) {
       await upsertLog({
         date,
         commute_mode: commuteMode || null,
-        commute_distance_km:
-          commuteMode && commuteMode !== "wfh" ? Number(commuteDistance) || (needsDistance ? null : 0) : null,
+        commute_distance_km: !commuteMode
+          ? null
+          : commuteMode === "wfh"
+          ? 0
+          : Number(commuteDistance) || (needsDistance ? null : 0),
         diet_type: dietType || null,
         energy_kwh: energyMode === "kwh" && energyKwh !== "" ? Number(energyKwh) : null,
         energy_level: energyMode === "level" ? energyLevel || null : null,

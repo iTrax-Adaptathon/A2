@@ -13,9 +13,11 @@ needs to know the difference.
 
 from statistics import mean
 
+from .anomaly import detect_anomalies
 from .emission_factors import get_region
 from .forecast import forecast as run_forecast
 from .optimizer import optimize as run_optimize
+from .patterns import weekday_breakdown
 
 LOW_CERTAINTY_SOURCES = {"personal_estimate", "population_default"}
 
@@ -124,6 +126,34 @@ def generate_insights(trend, raw_history: list, region_code: str) -> list[dict]:
                 "headline": f"Flights contributed {flight_total}kg this period",
                 "detail": "Flights aren't part of the optimizer's levers (a trip already happened) but are counted in your totals -- they're often the single largest line item in a personal footprint.",
                 "severity": "warning" if flight_total > sum(category_totals.values()) * 0.3 else "info",
+            }
+        )
+
+    # --- anomaly detection: surface only the single most recent flagged
+    # day, so a long history with several past anomalies doesn't flood
+    # the feed -- full history is available via GET /api/anomalies ---
+    anomalies = detect_anomalies(trend)
+    if anomalies:
+        latest = anomalies[-1]
+        insights.append(
+            {
+                "type": "anomaly",
+                "headline": f"{latest.date} was unusual",
+                "detail": latest.message,
+                "severity": "warning" if latest.direction == "high" else "positive",
+            }
+        )
+
+    # --- behavioral pattern: which weekday tends to run highest ---
+    patterns = weekday_breakdown(trend)
+    if patterns["enough_data"] and patterns["highest"] and patterns["lowest"] and patterns["highest"].label != patterns["lowest"].label:
+        hi, lo = patterns["highest"], patterns["lowest"]
+        insights.append(
+            {
+                "type": "pattern",
+                "headline": f"{hi.label}s run highest, {lo.label}s lowest",
+                "detail": f"Averaging {hi.average_kg_co2e}kg on {hi.label}s vs {lo.average_kg_co2e}kg on {lo.label}s across your logged history.",
+                "severity": "info",
             }
         )
 

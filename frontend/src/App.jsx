@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import { getForecast, getReference, getRegions, getSummary } from "./api";
+import AnomaliesCard from "./components/AnomaliesCard";
+import BudgetPanel from "./components/BudgetPanel";
 import HistoryTable from "./components/HistoryTable";
 import InsightsFeed from "./components/InsightsFeed";
 import LogPanel from "./components/LogPanel";
 import OptimizerPanel from "./components/OptimizerPanel";
+import PatternsCard from "./components/PatternsCard";
 import RoadmapPreview from "./components/RoadmapPreview";
 import Sidebar from "./components/Sidebar";
 import SummaryCards from "./components/SummaryCards";
@@ -19,6 +22,7 @@ const SECTION_TITLES = {
   insights: "AI Carbon Analyst",
   whatif: "What-If Simulator",
   optimize: "Carbon Budget Optimizer",
+  budget: "Carbon Budget",
   roadmap: "Roadmap",
 };
 
@@ -58,6 +62,8 @@ function Dashboard({ reference }) {
       )}
       <SummaryCards summary={summary} />
       <TrendsChart trend={summary?.trend} forecast={forecast} />
+      <PatternsCard refreshKey={refreshKey} />
+      <AnomaliesCard refreshKey={refreshKey} />
       <HistoryTable trend={summary?.trend} onChanged={() => setRefreshKey((k) => k + 1)} />
     </>
   );
@@ -75,7 +81,7 @@ function AppShell({ reference }) {
   const [summaryForOptimizer, setSummaryForOptimizer] = useState(null);
 
   useEffect(() => {
-    if (section === "optimize") {
+    if (section === "optimize" || section === "budget") {
       getSummary().then(setSummaryForOptimizer);
     }
   }, [section, region]);
@@ -91,6 +97,7 @@ function AppShell({ reference }) {
           {section === "insights" && <InsightsFeed region={region} refreshKey={section} />}
           {section === "whatif" && <WhatIfSimulator reference={reference} region={region} />}
           {section === "optimize" && <OptimizerPanel region={region} summary={summaryForOptimizer} />}
+          {section === "budget" && <BudgetPanel summary={summaryForOptimizer} />}
           {section === "roadmap" && <RoadmapPreview />}
         </main>
       </div>

@@ -16,7 +16,11 @@ Source taxonomy (most to least certain):
   "personal_estimate" -- nothing logged this day, but the user has enough of
                           their OWN recent history in this category to fall
                           back to their personal average instead of guessing
-                          blind or zeroing it out.
+                          blind or zeroing it out. Prefers a same-weekday
+                          average when enough weekday-matched history exists
+                          (a missing Tuesday first looks at other Tuesdays --
+                          see `basis` below) before falling back to a flat
+                          rolling average.
   "population_default" -- no data logged AND no personal history yet either
                           (e.g. day one), so a population-average constant is
                           used just so the number isn't misleadingly zero.
@@ -42,8 +46,17 @@ from .emission_factors import (
 )
 
 # How many of the user's own most-recent (by date) data points to
-# average for the "personal_estimate" fallback.
+# average for the flat "personal_estimate" fallback.
 ROLLING_WINDOW = 14
+
+# Smart missing-data reconstruction: how far back (in history entries, not
+# calendar days) to search for same-weekday matches, and the minimum count
+# needed before trusting a weekday-specific average over the flat one. A
+# missing Tuesday is a different animal from a missing Saturday -- most
+# people's commute/energy/shopping genuinely vary by day of week -- but two
+# data points isn't a pattern yet, hence the minimum.
+WEEKDAY_LOOKBACK = 60
+WEEKDAY_MIN_SAMPLES = 2
 
 Source = Literal["observed", "inferred", "personal_estimate", "population_default"]
 
@@ -62,6 +75,10 @@ class CategoryResult:
     uncertainty_pct: float
     low_kg_co2e: float
     high_kg_co2e: float
+    # Only meaningful when source == "personal_estimate": which
+    # reconstruction strategy produced the number, so the UI can show
+    # "Tue avg" instead of a generic "your average".
+    basis: Optional[Literal["weekday_average", "rolling_average"]] = None
 
 
 def _raw_commute_kg(region: dict, mode: Optional[str], distance_km: Optional[float]) -> Optional[float]:
@@ -96,7 +113,7 @@ def _raw_shopping_kg(shopping_level: Optional[str]) -> Optional[float]:
     return SHOPPING_LEVEL_KG_PER_DAY[shopping_level]
 
 
-def _band(kg: float, source: Source) -> CategoryResult:
+def _band(kg: float, source: Source, basis: Optional[str] = None) -> CategoryResult:
     pct = UNCERTAINTY_PCT[source]
     delta = kg * pct
     return CategoryResult(
@@ -105,18 +122,20 @@ def _band(kg: float, source: Source) -> CategoryResult:
         uncertainty_pct=pct,
         low_kg_co2e=round(max(kg - delta, 0), 2),
         high_kg_co2e=round(kg + delta, 2),
+        basis=basis,
     )
 
 
 def _resolve(
     raw: Optional[float],
     inferred: bool,
-    personal_history: Iterable[float],
+    dated_history: Iterable[tuple],
     default_kg: float,
+    target_weekday: int,
     use_personal_average: bool = True,
 ) -> CategoryResult:
-    """`personal_history` must already be most-recent-date-first; only the
-    first ROLLING_WINDOW values are used.
+    """`dated_history` is an iterable of (date, raw_value) pairs, already
+    most-recent-date-first.
 
     `inferred` marks that `raw` (if not None) came from a channel that had
     to fill a gap itself (NL/voice/receipt) rather than an exact figure.
@@ -131,9 +150,16 @@ def _resolve(
         return _band(raw, "inferred" if inferred else "observed")
 
     if use_personal_average:
-        history = list(personal_history)[:ROLLING_WINDOW]
-        if history:
-            return _band(mean(history), "personal_estimate")
+        dated_history = list(dated_history)
+        lookback = dated_history[:WEEKDAY_LOOKBACK]
+
+        weekday_matches = [v for d, v in lookback if d.weekday() == target_weekday][:ROLLING_WINDOW]
+        if len(weekday_matches) >= WEEKDAY_MIN_SAMPLES:
+            return _band(mean(weekday_matches), "personal_estimate", basis="weekday_average")
+
+        flat = [v for _, v in dated_history[:ROLLING_WINDOW]]
+        if flat:
+            return _band(mean(flat), "personal_estimate", basis="rolling_average")
 
     return _band(default_kg, "population_default")
 
@@ -150,20 +176,23 @@ def estimate_entry(entry, history: Iterable, region_code: str) -> dict:
     region = get_region(region_code)
     history = list(history)
     inferred_fields = getattr(entry, "inferred_fields", None) or set()
+    target_weekday = entry.date.weekday()
 
     commute_history = [
-        v
+        (h.date, v)
         for h in history
         if (v := _raw_commute_kg(region, h.commute_mode, h.commute_distance_km)) is not None
     ]
-    food_history = [v for h in history if (v := _raw_food_kg(h.diet_type)) is not None]
+    food_history = [(h.date, v) for h in history if (v := _raw_food_kg(h.diet_type)) is not None]
     energy_history = [
-        v
+        (h.date, v)
         for h in history
         if (v := _raw_energy_kg(region, h.energy_kwh, h.energy_level)) is not None
     ]
     shopping_history = [
-        v for h in history if (v := _raw_shopping_kg(getattr(h, "shopping_level", None))) is not None
+        (h.date, v)
+        for h in history
+        if (v := _raw_shopping_kg(getattr(h, "shopping_level", None))) is not None
     ]
 
     defaults = population_defaults_kg_per_day(region_code)
@@ -173,21 +202,28 @@ def estimate_entry(entry, history: Iterable, region_code: str) -> dict:
         "commute" in inferred_fields,
         commute_history,
         defaults["commute"],
+        target_weekday,
     )
     food = _resolve(
-        _raw_food_kg(entry.diet_type), "food" in inferred_fields, food_history, defaults["food"]
+        _raw_food_kg(entry.diet_type),
+        "food" in inferred_fields,
+        food_history,
+        defaults["food"],
+        target_weekday,
     )
     energy = _resolve(
         _raw_energy_kg(region, entry.energy_kwh, entry.energy_level),
         "energy" in inferred_fields,
         energy_history,
         defaults["energy"],
+        target_weekday,
     )
     flights = _resolve(
         _raw_flight_kg(getattr(entry, "flight_km", None), getattr(entry, "flight_haul", None)),
         "flights" in inferred_fields,
         [],  # no personal-average smearing -- see use_personal_average docstring
         defaults["flights"],
+        target_weekday,
         use_personal_average=False,
     )
     shopping = _resolve(
@@ -195,6 +231,7 @@ def estimate_entry(entry, history: Iterable, region_code: str) -> dict:
         "shopping" in inferred_fields,
         shopping_history,
         defaults["shopping"],
+        target_weekday,
     )
 
     categories = (commute, food, energy, flights, shopping)
