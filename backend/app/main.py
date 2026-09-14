@@ -33,7 +33,10 @@ def _db() -> Session:
 
 
 def _to_out(entry: models.LogEntry, all_entries: list[models.LogEntry]) -> schemas.LogEntryOut:
-    history = [e for e in all_entries if e.id != entry.id]
+    # Most-recent-date-first, as estimate_entry's rolling average expects.
+    history = sorted(
+        (e for e in all_entries if e.id != entry.id), key=lambda e: e.date, reverse=True
+    )
     result = estimate_entry(entry, history)
     return schemas.LogEntryOut(
         date=entry.date,

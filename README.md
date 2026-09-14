@@ -84,6 +84,13 @@ npm run dev                    # http://localhost:5173
 The frontend expects the API at `http://127.0.0.1:8000` by default; override
 with a `VITE_API_URL` env var if needed.
 
+**Backend tests** (unit tests for the estimator, no DB/HTTP needed):
+```bash
+cd backend
+pip install -r requirements-dev.txt
+pytest tests/ -v
+```
+
 ## API
 
 | Method | Path              | Purpose                                   |

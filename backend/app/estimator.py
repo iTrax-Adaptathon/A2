@@ -67,10 +67,12 @@ def _raw_energy_kg(energy_kwh: Optional[float], energy_level: Optional[str]) -> 
 
 
 def _resolve(raw: Optional[float], personal_history: Iterable[float], category: str) -> CategoryResult:
+    """`personal_history` must already be most-recent-first; only the
+    first ROLLING_WINDOW values are used."""
     if raw is not None:
         return CategoryResult(kg_co2e=round(raw, 2), source="logged")
 
-    history = list(personal_history)[-ROLLING_WINDOW:]
+    history = list(personal_history)[:ROLLING_WINDOW]
     if history:
         return CategoryResult(kg_co2e=round(mean(history), 2), source="estimated")
 
@@ -83,9 +85,9 @@ def estimate_entry(entry, history: Iterable) -> dict:
     """
     entry: the LogEntry being estimated (ORM object or anything with the
            same attribute names).
-    history: other LogEntry rows for this user, in any order, used to
-             build the personal rolling average per category. `entry`
-             itself should not be included.
+    history: other LogEntry rows for this user, most-recent-date-first,
+             used to build the personal rolling average per category.
+             `entry` itself should not be included.
     """
     history = list(history)
 

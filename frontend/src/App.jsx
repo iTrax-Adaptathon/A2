@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import { getReference, getSummary } from "./api";
+import HistoryTable from "./components/HistoryTable";
 import LogForm from "./components/LogForm";
 import SummaryCards from "./components/SummaryCards";
 import TrendsChart from "./components/TrendsChart";
@@ -42,6 +43,7 @@ function App() {
           <div className="right-col">
             <SummaryCards summary={summary} />
             <TrendsChart trend={summary?.trend} />
+            <HistoryTable trend={summary?.trend} onChanged={refresh} />
           </div>
         </main>
       )}
