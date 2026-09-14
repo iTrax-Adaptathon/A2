@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { getInsights } from "../api";
 
-const ICON = { info: "ℹ️", positive: "✅", warning: "⚠️" };
-
 export default function InsightsFeed({ region, refreshKey }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +30,6 @@ export default function InsightsFeed({ region, refreshKey }) {
         <ul className="insight-feed">
           {data.insights.map((insight, i) => (
             <li key={i} className={`insight-item insight-${insight.severity}`}>
-              <span className="insight-icon">{ICON[insight.severity]}</span>
               <div>
                 <strong>{insight.headline}</strong>
                 <p>{insight.detail}</p>

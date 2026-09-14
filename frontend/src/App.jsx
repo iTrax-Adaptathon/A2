@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import { getForecast, getReference, getRegions, getSummary } from "./api";
-import AnomaliesCard from "./components/AnomaliesCard";
 import BudgetPanel from "./components/BudgetPanel";
 import HistoryTable from "./components/HistoryTable";
 import InsightsFeed from "./components/InsightsFeed";
 import LogPanel from "./components/LogPanel";
 import OptimizerPanel from "./components/OptimizerPanel";
-import PatternsCard from "./components/PatternsCard";
 import RoadmapPreview from "./components/RoadmapPreview";
 import Sidebar from "./components/Sidebar";
 import SummaryCards from "./components/SummaryCards";
@@ -62,8 +60,6 @@ function Dashboard({ reference }) {
       )}
       <SummaryCards summary={summary} />
       <TrendsChart trend={summary?.trend} forecast={forecast} />
-      <PatternsCard refreshKey={refreshKey} />
-      <AnomaliesCard refreshKey={refreshKey} />
       <HistoryTable trend={summary?.trend} onChanged={() => setRefreshKey((k) => k + 1)} />
     </>
   );

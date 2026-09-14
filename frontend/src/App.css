@@ -9,7 +9,7 @@
   width: 224px;
   flex-shrink: 0;
   background: var(--bg-sidebar);
-  color: #e5e7eb;
+  color: var(--text-muted);
   display: flex;
   flex-direction: column;
   padding: 1.25rem 0.75rem;
@@ -27,7 +27,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--ember), var(--lime));
+  background: linear-gradient(90deg, var(--gold), var(--white-gold));
 }
 
 .sidebar-brand {
@@ -38,22 +38,25 @@
 }
 
 .sidebar-brand-mark {
-  font-size: 1.5rem;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
   width: 2.1rem;
   height: 2.1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 9px;
-  background: linear-gradient(135deg, var(--ember-soft), var(--bg-elevated));
-  border: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--gold-soft), var(--bg-elevated));
+  border: 1px solid var(--gold);
+  color: var(--gold);
 }
 
 .sidebar-brand-title {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 0.98rem;
-  color: #fff;
+  color: var(--text);
   letter-spacing: -0.01em;
 }
 
@@ -79,7 +82,7 @@
   gap: 0.65rem;
   background: none;
   border: none;
-  color: #b7bfcb;
+  color: var(--text-muted);
   font: inherit;
   font-size: 0.88rem;
   text-align: left;
@@ -97,10 +100,6 @@
   background: var(--accent);
   color: var(--on-accent);
   font-weight: 700;
-}
-
-.nav-icon {
-  font-size: 1rem;
 }
 
 .app-main {
@@ -137,7 +136,7 @@
   width: 2.4rem;
   height: 3px;
   border-radius: 2px;
-  background: linear-gradient(90deg, var(--ember), var(--lime));
+  background: linear-gradient(90deg, var(--gold), var(--white-gold));
 }
 
 .topbar-right {
@@ -218,7 +217,7 @@ main {
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, var(--ember), transparent 65%);
+  background: linear-gradient(90deg, var(--gold), transparent 65%);
   opacity: 0.7;
 }
 
@@ -689,7 +688,7 @@ button.secondary {
 }
 
 .source-observed {
-  color: var(--lime);
+  color: var(--gold);
 }
 
 .source-inferred {
@@ -764,10 +763,10 @@ th {
 
 .insight-item {
   display: flex;
-  gap: 0.7rem;
   padding: 0.8rem 1rem;
   border-radius: 10px;
   border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
 }
 
 .insight-item p {
@@ -780,23 +779,21 @@ th {
   font-size: 0.92rem;
 }
 
-.insight-icon {
-  font-size: 1.1rem;
-  flex-shrink: 0;
-}
-
 .insight-positive {
   background: var(--accent-soft);
   border-color: transparent;
+  border-left-color: var(--accent);
 }
 
 .insight-warning {
   background: var(--warning-soft);
   border-color: transparent;
+  border-left-color: var(--warning);
 }
 
 .insight-info {
   background: var(--border-soft);
+  border-left-color: var(--shopping);
 }
 
 /* ---------- what-if simulator ---------- */
@@ -1127,7 +1124,7 @@ th {
 }
 
 .budget-dot.under {
-  background: var(--lime);
+  background: var(--gold);
 }
 
 .budget-dot.over {

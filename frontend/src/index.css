@@ -1,47 +1,43 @@
 :root {
-  /* "Instrument panel" theme: near-black ash background, an ember/orange
-     brand accent (the thing being measured -- emission, heat), lime for
-     reduction/positive signals, and a distinct hue per emission category
-     so the same color always means the same category everywhere in the
-     app (charts, badges, optimizer bars, roadmap). */
-  --bg: #0a0a0b;
-  --bg-elevated: #16171a;
-  --bg-sidebar: #050506;
-  --text: #f2f1ec;
-  --text-muted: #8d8b85;
-  --border: #26262a;
-  --border-soft: #1c1c1f;
+  /* Black / gold / white. Gold is the single primary accent (brand,
+     buttons, active states); category colors are metallic variations
+     on the same family (gold, champagne, bronze, silver) with one
+     crimson reserved for alarm (flights, danger). */
+  --bg: #050505;
+  --bg-elevated: #121110;
+  --bg-sidebar: #000000;
+  --text: #f5f2e8;
+  --text-muted: #9a9284;
+  --border: #2a2620;
+  --border-soft: #1a1712;
 
-  --ember: #ff5a1f;
-  --ember-soft: #3a1f10;
-  --lime: #c6f135;
-  --lime-soft: #1f2a0a;
+  --gold: #d4af37;
+  --gold-soft: #2b2410;
+  --white-gold: #f0e6c8;
+  --white-gold-soft: #2a2718;
 
-  --commute: #00c2d1;
-  --commute-soft: #06282b;
-  --food: #7ddb56;
-  --food-soft: #16250d;
-  --energy: #ffb300;
-  --energy-soft: #2e2005;
-  --flights: #ff4d4d;
-  --flights-soft: #2e0f0f;
-  --shopping: #c084fc;
-  --shopping-soft: #211230;
+  --commute: #d4af37;
+  --commute-soft: #2b2410;
+  --food: #f0e6c8;
+  --food-soft: #2a2718;
+  --energy: #c98a3e;
+  --energy-soft: #2e2210;
+  --flights: #b8323a;
+  --flights-soft: #2e1416;
+  --shopping: #c7c9cc;
+  --shopping-soft: #232426;
 
-  --warning: #ffb300;
-  --warning-soft: #2e2005;
-  --danger: #ff4d4d;
-  --danger-soft: #2e0f0f;
+  --warning: #c98a3e;
+  --warning-soft: #2e2210;
+  --danger: #b8323a;
+  --danger-soft: #2e1416;
 
-  /* Primary interactive accent is lime (go/save/positive); ember is the
-     brand identity color (logo mark, headline underline) representing
-     the thing the app measures rather than the action to take. */
-  --accent: var(--lime);
-  --accent-soft: var(--lime-soft);
-  --on-accent: #0a0a0b; /* text color for anything sitting on a bright lime/ember fill */
+  --accent: var(--gold);
+  --accent-soft: var(--gold-soft);
+  --on-accent: #0a0a0a; /* text color for anything sitting on a gold fill */
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.6);
   --radius: 14px;
 
   --font-display: "Space Grotesk", system-ui, sans-serif;
@@ -53,11 +49,6 @@
   color: var(--text);
   background: var(--bg);
 }
-
-/* This theme is intentionally dark-first and single-committed (see
-   artifact/theme guidance on deliberate single-look designs) -- an
-   emissions "instrument panel" reads correctly in one register rather
-   than hedging between light and dark variants. */
 
 * {
   box-sizing: border-box;

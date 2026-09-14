@@ -12,11 +12,11 @@ import {
 } from "recharts";
 
 const COLORS = {
-  commute: "#00c2d1",
-  food: "#7ddb56",
-  energy: "#ffb300",
-  flights: "#ff4d4d",
-  shopping: "#c084fc",
+  commute: "#d4af37",
+  food: "#f0e6c8",
+  energy: "#c98a3e",
+  flights: "#b8323a",
+  shopping: "#c7c9cc",
   forecast: "#8d8b85",
 };
 const CATEGORIES = ["commute", "food", "energy", "flights", "shopping"];

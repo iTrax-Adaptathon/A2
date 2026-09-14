@@ -32,10 +32,11 @@ contributors to a personal footprint that a 3-category model misses:
   high), the same style as energy usage, since most people don't log every
   purchase.
 
-Of the fifteen possible module ideas for this problem, this build **fully
-implements twelve** end-to-end (not mocked) and **previews the remaining
-three** as honest "Coming in Sprint 2" cards in the Roadmap tab — described,
-not faked with placeholder data.
+Of the fifteen possible module ideas for this problem, ten are fully wired
+up end-to-end, two have working backend logic that never got a dashboard UI
+(anomaly detection, behavioral patterns — see Roadmap), and three are still
+just ideas described honestly in the Roadmap tab rather than faked with
+placeholder data.
 
 | # | Module | Status |
 |---|---|---|
@@ -45,9 +46,9 @@ not faked with placeholder data.
 | 4 | Uncertainty-aware CO2 estimates | **Built** |
 | 5 | Observed / inferred / estimated distinction | **Built** |
 | 6 | Smart missing-data reconstruction (weekday-aware) | **Built** |
-| 7 | Carbon anomaly detection | **Built** |
+| 7 | Carbon anomaly detection | Backend done, not in the UI |
 | 8 | Personal carbon forecasting | **Built** |
-| 9 | Behavioral pattern analysis | **Built** |
+| 9 | Behavioral pattern analysis | Backend done, not in the UI |
 | 10 | What-if simulation engine | **Built** |
 | 11 | Constraint-based carbon optimization | **Built** |
 | 12 | Carbon ROI ranking | Preview |
@@ -159,19 +160,21 @@ rather than leaving it looking broken.
   would inflate a mean/stdev-based threshold enough to make that same day
   no longer look abnormal by the metric meant to catch it. Median/MAD is
   robust to that — a few outliers barely move the median. Surfaced via
-  `GET /api/anomalies`, a Dashboard card, and the AI Analyst.
+  `GET /api/anomalies` and mentioned by the AI Analyst; never got its own
+  Dashboard card, so the `AnomaliesCard.jsx` component sits unused.
 - **Behavioral pattern analysis** (`backend/app/patterns.py`) — breaks the
-  trend down by weekday to show which days run highest/lowest. This is the
-  same weekday-grouping the estimator uses internally for reconstruction
-  — the Dashboard's "Weekly pattern" card is effectively "show your
-  work" for a strategy already running under the hood.
+  trend down by weekday to show which days run highest/lowest, reusing the
+  same weekday-grouping the estimator uses internally for reconstruction.
+  Same story as anomalies: `GET /api/patterns` works, `PatternsCard.jsx`
+  exists, neither made it onto the Dashboard.
 - **Personalized carbon budget** (`backend/app/budget.py`, its own Budget
   tab) — unlike the Optimizer's ad-hoc, one-off target, this is a
   **persisted** singleton target (`models.Budget`) tracked over time: days
   under/over budget, current streak, best streak, rendered as a
   contribution-graph-style day strip. Setting a new budget starts fresh
   from that day forward rather than retroactively judging earlier days
-  against a target that didn't exist yet.
+  against a target that didn't exist yet. This one did make it all the way
+  through.
 
 ## Architecture
 
@@ -201,7 +204,7 @@ frontend/                 React + Vite
       LogPanel.jsx                 Tabs: Form / Natural language / Voice / Receipt
       LogForm.jsx, TextChannelLogger.jsx  The four logging channels
       SummaryCards.jsx, TrendsChart.jsx, HistoryTable.jsx  Dashboard
-      PatternsCard.jsx, AnomaliesCard.jsx  Dashboard: weekday breakdown, flagged days
+      PatternsCard.jsx, AnomaliesCard.jsx  built, unused -- see Roadmap
       InsightsFeed.jsx               AI Analyst feed
       WhatIfSimulator.jsx             Live hypothetical-day simulator
       OptimizerPanel.jsx               Ad-hoc budget-target optimizer UI
