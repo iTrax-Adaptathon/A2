@@ -55,12 +55,12 @@ class LogEntry(Base):
 
 class Budget(Base):
     """
-    Personalized carbon budget (item 13). A singleton row -- setting a
-    new budget replaces the old one rather than keeping history, so
-    "current budget" is always just "the one row here". Streak/status
-    math (see budget.py) only looks at days on/after `created_date`,
-    so replacing the budget naturally resets progress rather than
-    retroactively judging days against a target that didn't exist yet.
+    A singleton row -- setting a new budget replaces the old one rather
+    than keeping history, so "current budget" is always just the one
+    row here. Streak/status math (see budget.py) only looks at days
+    on/after `created_date`, so replacing the budget naturally resets
+    progress rather than retroactively judging days against a target
+    that didn't exist yet.
     """
 
     __tablename__ = "budgets"

@@ -1,22 +1,21 @@
 """
-Rule-based text -> structured-log parser. Powers three of the four
-logging channels (item 1, multi-modal logging):
+Rule-based text -> structured-log parser. Shared by three logging
+channels:
 
   - natural language: user types a sentence, this parses it directly.
   - voice: the browser transcribes speech to text client-side (Web
-    Speech API, no backend cost), then sends the transcript here --
-    same code path as natural language.
+    Speech API), then sends the transcript here -- same code path as
+    natural language.
   - receipt: the browser OCRs an uploaded image client-side
     (tesseract.js), then sends the extracted text here with
     channel="receipt", which additionally checks receipt-specific
     patterns (fuel litres, electricity units, grocery item keywords)
     before falling through to the general parser.
 
-No external LLM call -- deliberately kept as regex/keyword heuristics
-so it needs no API key and is fast enough to run per-keystroke-ish in
-a demo. Swapping this module for a real LLM-based extractor (e.g. the
-Claude API) is a natural Sprint 2 upgrade; the rest of the app only
-depends on the ParsedResult shape, not on how it's produced.
+Plain regex/keyword matching, no external API calls -- easy to run
+locally and fast enough for interactive use. Could be swapped for an
+LLM-based extractor later without touching anything else that depends
+on this module, since callers only see the ParsedResult shape.
 """
 
 import re

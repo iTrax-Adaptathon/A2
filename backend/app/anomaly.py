@@ -1,6 +1,6 @@
 """
-Carbon anomaly detection (item 7): flags logged days whose total
-footprint deviates sharply from the user's own recent pattern.
+Flags logged days whose total footprint deviates sharply from the
+user's own recent pattern.
 
 Uses a "modified z-score" (median + MAD, not mean + stdev): with mean/
 stdev, a single huge day -- a long-haul flight -- inflates the stdev

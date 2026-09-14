@@ -1,14 +1,11 @@
 """
-"AI Carbon Analyst" (item 15): a rule-based engine that reads the
-trend, forecast, and optimizer outputs and narrates them as plain-
-language insights -- the same role an LLM-backed analyst would play,
-without needing an external API key wired into this Sprint 1 build.
+"AI Carbon Analyst": a rule-based engine that reads the trend,
+forecast, and optimizer outputs and narrates them as plain-language
+insights, without needing an external API key.
 
-Deliberately isolated (takes plain data in, returns plain Insight
-objects out) so swapping the rule engine below for a real LLM call
-(e.g. handing this same context to the Claude API and asking it to
-narrate) is a contained Sprint 2 change -- nothing else in the app
-needs to know the difference.
+Kept isolated (plain data in, plain Insight objects out) so the rule
+engine below could later be swapped for an actual LLM call without
+touching anything else in the app.
 """
 
 from statistics import mean

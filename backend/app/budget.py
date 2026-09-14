@@ -1,11 +1,10 @@
 """
-Personalized carbon budget (item 13): given a persisted daily target
-(see models.Budget), computes progress -- days tracked, days under
-budget, current and best streaks -- against the logged trend.
+Given a persisted daily budget target (see models.Budget), computes
+progress against the logged trend: days tracked, days under budget,
+current and best streaks.
 
-Kept as a pure function over plain data (not the ORM row directly)
-so it's trivially unit-testable and swappable if a future team adds
-weekly/monthly budget periods instead of just daily.
+Takes plain data rather than the ORM row directly, so it's easy to
+test and easy to extend later (weekly/monthly periods, for example).
 """
 
 from dataclasses import dataclass

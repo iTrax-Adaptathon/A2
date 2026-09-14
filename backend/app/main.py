@@ -29,7 +29,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Carbon Emission")
 
-# Wide-open CORS: this is a Sprint 1 hackathon build with no auth yet.
+# Wide-open CORS: no auth yet, single local user.
 # Tighten this before it ever sees a real deployment.
 app.add_middleware(
     CORSMiddleware,
@@ -236,7 +236,7 @@ def parse_log_text(payload: schemas.ParseRequest):
     )
 
 
-# ------------------------------------------------------------- what-if (10)
+# ------------------------------------------------------------- what-if
 
 @app.post("/api/simulate", response_model=schemas.SimulateResponse)
 def simulate(payload: schemas.SimulateRequest):
@@ -286,7 +286,7 @@ def simulate(payload: schemas.SimulateRequest):
         db.close()
 
 
-# -------------------------------------------------------------- forecast (8)
+# -------------------------------------------------------------- forecast
 
 @app.get("/api/forecast", response_model=schemas.ForecastOut)
 def forecast_endpoint(days: int = 7):
@@ -303,7 +303,7 @@ def forecast_endpoint(days: int = 7):
         db.close()
 
 
-# -------------------------------------------------------------- optimize (11)
+# -------------------------------------------------------------- optimize
 
 @app.post("/api/optimize", response_model=schemas.OptimizeOut)
 def optimize_endpoint(payload: schemas.OptimizeRequest):
@@ -322,7 +322,7 @@ def optimize_endpoint(payload: schemas.OptimizeRequest):
         db.close()
 
 
-# --------------------------------------------------------------- insights (15)
+# --------------------------------------------------------------- insights
 
 @app.get("/api/insights", response_model=schemas.InsightsOut)
 def insights_endpoint(region: str = "IN"):
@@ -339,7 +339,7 @@ def insights_endpoint(region: str = "IN"):
         db.close()
 
 
-# --------------------------------------------------------------- anomalies (7)
+# --------------------------------------------------------------- anomalies
 
 @app.get("/api/anomalies", response_model=schemas.AnomaliesOut)
 def anomalies_endpoint():
@@ -355,7 +355,7 @@ def anomalies_endpoint():
         db.close()
 
 
-# ---------------------------------------------------------------- patterns (9)
+# ---------------------------------------------------------------- patterns
 
 @app.get("/api/patterns", response_model=schemas.PatternsOut)
 def patterns_endpoint():
@@ -373,7 +373,7 @@ def patterns_endpoint():
         db.close()
 
 
-# ------------------------------------------------------------------ budget (13)
+# ------------------------------------------------------------------ budget
 
 @app.post("/api/budget", response_model=schemas.BudgetOut)
 def set_budget(payload: schemas.BudgetIn):

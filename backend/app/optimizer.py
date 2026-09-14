@@ -1,23 +1,17 @@
 """
-Constraint-based carbon optimization (item 11): given a target kg
-CO2e/day, recommend the smallest set of lifestyle-lever changes
-(commute mode, diet, energy usage, shopping level) that gets a user
-from their current personal baseline to that target -- greedily
-picking the highest-kg-saved-per-day lever first, which favors the
-least number of disruptive changes rather than claiming true global
-optimality.
+Given a target kg CO2e/day, recommends the smallest set of lifestyle-
+lever changes (commute mode, diet, energy usage, shopping level) that
+gets a user from their current baseline to that target -- picking the
+highest-kg-saved-per-day lever first. That favors the fewest number of
+changes rather than any claim of true global optimality.
 
 Flights are counted in the baseline (amortized across the log window,
-see `_amortized_flights_kg_per_day`) but deliberately NOT offered as a
-lever here -- a flight already happened, there's no daily habit to
-swap it for. That's a real limitation worth stating rather than
-quietly ignoring.
+see `_amortized_flights_kg_per_day`) but not offered as a lever -- a
+flight already happened, there's no daily habit to swap it for.
 
-This intentionally stays a plain greedy selection over a small, fixed
-action catalog -- a real knapsack/ILP solver would be overkill for
-four levers, and a future team wanting genuine multi-constraint
-optimization (cost, effort, feasibility) has a clear seam to extend
-`_candidate_actions` without touching the rest of the app.
+Just a greedy selection over a small, fixed action catalog. A real
+solver would be overkill for four levers; `_candidate_actions` is the
+place to extend this if that ever changes.
 """
 
 from collections import Counter

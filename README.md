@@ -57,7 +57,7 @@ not faked with placeholder data.
 
 ## The core model
 
-### Observed / inferred / personal_estimate / population_default (items 4, 5)
+### Observed / inferred / personal_estimate / population_default
 
 For each of the five categories (commute, food, energy, flights, shopping)
 on a given day, `backend/app/estimator.py` resolves a value in this
@@ -71,7 +71,7 @@ priority order:
 3. **`personal_estimate`** — nothing logged this day, but the user has
    enough of their *own* recent history in this category to fall back to
    their personal average instead of guessing blind. This tier is itself
-   **weekday-aware** (item 6): it first checks whether at least 2 same-
+   **weekday-aware**: it first checks whether at least 2 same-
    weekday data points exist within the last 60 entries (a missing Tuesday
    looks at other Tuesdays first) and only falls back to a flat rolling
    average of the last 14 points when there isn't enough weekday-specific
@@ -88,7 +88,7 @@ no flight logged and no history skips straight to tier 4, whose default for
 flights is 0kg. Shopping still uses the normal tier-3 personal average, same
 as commute/food/energy.
 
-Every result carries this source **and an uncertainty band** (item 4):
+Every result carries this source **and an uncertainty band**:
 `observed` ±5%, `inferred` ±20%, `personal_estimate` ±30%,
 `population_default` ±50%. A day's total combines all five categories'
 uncertainty via root-sum-of-squares, so the range tightens as more of the
@@ -98,7 +98,7 @@ day is directly observed rather than guessed.
 every read, not frozen at write time — an early "estimated" day can shift
 slightly as more real data comes in later. Deliberate, not a bug.
 
-### Multi-modal logging (item 1)
+### Multi-modal logging
 
 Four input channels all converge on the same `POST /api/logs` shape:
 
@@ -116,7 +116,7 @@ Four input channels all converge on the same `POST /api/logs` shape:
   electricity bill's units → observed kWh, grocery item keywords → inferred
   diet type.
 
-### Versioned regional emission-factor engine (item 2)
+### Versioned regional emission-factor engine
 
 `backend/app/emission_factors.py` is a registry of regions (India, US, EU,
 Global average), each with its own commute/energy factors **and a version
@@ -128,7 +128,7 @@ never silently restated if a region's factors are revised later. The
 Dashboard shows an explanatory banner when this causes a visible mismatch,
 rather than leaving it looking broken.
 
-### Forecasting, simulation, optimization, analysis (items 8, 10, 11, 15)
+### Forecasting, simulation, optimization, analysis
 
 - **Forecast** (`backend/app/forecast.py`) — least-squares regression over
   the trend (falls back to a flat average under 3 points), with an
@@ -150,7 +150,7 @@ rather than leaving it looking broken.
   recommendation). No external LLM call, so it needs no API key; swapping it
   for a real LLM-backed analyst is a contained, one-file change.
 
-### Anomaly detection, behavioral patterns, personalized budget (items 7, 9, 13)
+### Anomaly detection, behavioral patterns, personalized budget
 
 - **Anomaly detection** (`backend/app/anomaly.py`) — flags days whose total
   deviates sharply from the user's normal pattern, using a *modified
@@ -163,7 +163,7 @@ rather than leaving it looking broken.
 - **Behavioral pattern analysis** (`backend/app/patterns.py`) — breaks the
   trend down by weekday to show which days run highest/lowest. This is the
   same weekday-grouping the estimator uses internally for reconstruction
-  (item 6) — the Dashboard's "Weekly pattern" card is effectively "show your
+  — the Dashboard's "Weekly pattern" card is effectively "show your
   work" for a strategy already running under the hood.
 - **Personalized carbon budget** (`backend/app/budget.py`, its own Budget
   tab) — unlike the Optimizer's ad-hoc, one-off target, this is a
@@ -284,6 +284,3 @@ scientific/regulatory carbon accounting.
   docstring) — a team wanting to compare past budget periods would need to
   stop deleting the old row on update and add a `created_date` range query
   instead.
-
----
-🤖 Generated with [Claude Code](https://claude.com/claude-code)

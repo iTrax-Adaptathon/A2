@@ -1,11 +1,8 @@
 """
-Behavioral pattern analysis (item 9): breaks the logged trend down by
-day of week to surface recurring habits (e.g. "you drive more on
-Mondays"). Deliberately the simplest possible pattern-mining here --
-a per-weekday average -- since it's also the same grouping the
-estimator's weekday-aware reconstruction uses internally (see
-estimator.py's WEEKDAY_LOOKBACK), so this is the "show your work"
-view of a strategy already running under the hood.
+Breaks the logged trend down by day of week to surface recurring
+habits (e.g. "you drive more on Mondays"). Just a per-weekday average
+for now -- it's also the same grouping the estimator's weekday-aware
+reconstruction uses internally (see estimator.py's WEEKDAY_LOOKBACK).
 """
 
 from dataclasses import dataclass
