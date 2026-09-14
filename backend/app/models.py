@@ -24,6 +24,11 @@ class LogEntry(Base):
     energy_kwh = Column(Float, nullable=True)               # direct meter reading, if known
     energy_level = Column(String, nullable=True)            # low/medium/high fallback
 
+    flight_km = Column(Float, nullable=True)
+    flight_haul = Column(String, nullable=True)              # "short" | "long"
+
+    shopping_level = Column(String, nullable=True)           # low/medium/high
+
     region = Column(String, nullable=False, default="IN")   # which emission-factor profile was used
 
     # Multi-modal logging provenance: which input channel produced this row.

@@ -21,9 +21,14 @@ LOW_CERTAINTY_SOURCES = {"personal_estimate", "population_default"}
 
 
 def _category_sources(trend) -> list[str]:
+    # Flights excluded deliberately: its "population_default" is 0kg
+    # (no evidence of flying = assume no flight), which is a near-certain
+    # assumption, not a guessed footprint the way a nonzero commute/food/
+    # energy/shopping default is -- including it would make normal days
+    # look artificially "low certainty".
     sources = []
     for entry in trend:
-        sources += [entry.commute.source, entry.food.source, entry.energy.source]
+        sources += [entry.commute.source, entry.food.source, entry.energy.source, entry.shopping.source]
     return sources
 
 
@@ -73,6 +78,8 @@ def generate_insights(trend, raw_history: list, region_code: str) -> list[dict]:
         "commute": round(sum(t.commute.kg_co2e for t in trend), 2),
         "food": round(sum(t.food.kg_co2e for t in trend), 2),
         "energy": round(sum(t.energy.kg_co2e for t in trend), 2),
+        "flights": round(sum(t.flights.kg_co2e for t in trend), 2),
+        "shopping": round(sum(t.shopping.kg_co2e for t in trend), 2),
     }
     biggest = max(category_totals, key=category_totals.get)
     insights.append(
@@ -103,6 +110,20 @@ def generate_insights(trend, raw_history: list, region_code: str) -> list[dict]:
                 "headline": "Good logging coverage",
                 "detail": f"{100-low_certainty_ratio*100:.0f}% of your category values are directly observed or inferred from what you logged, not guessed.",
                 "severity": "positive",
+            }
+        )
+
+    # --- flights: called out separately since a single trip can dwarf
+    # weeks of daily habits, and it's the one category the optimizer
+    # can't offer a lever for ---
+    flight_total = category_totals["flights"]
+    if flight_total > 0:
+        insights.append(
+            {
+                "type": "flights",
+                "headline": f"Flights contributed {flight_total}kg this period",
+                "detail": "Flights aren't part of the optimizer's levers (a trip already happened) but are counted in your totals -- they're often the single largest line item in a personal footprint.",
+                "severity": "warning" if flight_total > sum(category_totals.values()) * 0.3 else "info",
             }
         )
 

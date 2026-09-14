@@ -3,7 +3,13 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from .emission_factors import DIET_FACTORS_KG_PER_DAY, ENERGY_LEVEL_KWH, REGIONS
+from .emission_factors import (
+    DIET_FACTORS_KG_PER_DAY,
+    ENERGY_LEVEL_KWH,
+    FLIGHT_FACTORS_KG_PER_KM,
+    REGIONS,
+    SHOPPING_LEVEL_KG_PER_DAY,
+)
 
 Channel = Literal["form", "natural_language", "voice", "receipt"]
 
@@ -17,6 +23,18 @@ def _valid_commute_mode(v, region_code: str = "IN"):
     return v
 
 
+def _valid_flight_haul(v):
+    if v is not None and v not in FLIGHT_FACTORS_KG_PER_KM:
+        raise ValueError(f"flight_haul must be one of {list(FLIGHT_FACTORS_KG_PER_KM)}")
+    return v
+
+
+def _valid_shopping_level(v):
+    if v is not None and v not in SHOPPING_LEVEL_KG_PER_DAY:
+        raise ValueError(f"shopping_level must be one of {list(SHOPPING_LEVEL_KG_PER_DAY)}")
+    return v
+
+
 class LogEntryIn(BaseModel):
     """What the client sends when logging (or updating) a day."""
 
@@ -26,6 +44,9 @@ class LogEntryIn(BaseModel):
     diet_type: Optional[str] = None
     energy_kwh: Optional[float] = None
     energy_level: Optional[str] = None
+    flight_km: Optional[float] = None
+    flight_haul: Optional[str] = None
+    shopping_level: Optional[str] = None
     notes: Optional[str] = None
     region: str = "IN"
     channel: Channel = "form"
@@ -49,6 +70,16 @@ class LogEntryIn(BaseModel):
         if v is not None and v not in ENERGY_LEVEL_KWH:
             raise ValueError(f"energy_level must be one of {list(ENERGY_LEVEL_KWH)}")
         return v
+
+    @field_validator("flight_haul")
+    @classmethod
+    def valid_flight_haul(cls, v):
+        return _valid_flight_haul(v)
+
+    @field_validator("shopping_level")
+    @classmethod
+    def valid_shopping_level(cls, v):
+        return _valid_shopping_level(v)
 
     @field_validator("region")
     @classmethod
@@ -75,6 +106,9 @@ class LogEntryOut(BaseModel):
     diet_type: Optional[str] = None
     energy_kwh: Optional[float] = None
     energy_level: Optional[str] = None
+    flight_km: Optional[float] = None
+    flight_haul: Optional[str] = None
+    shopping_level: Optional[str] = None
     notes: Optional[str] = None
     region: str
     channel: str
@@ -82,6 +116,8 @@ class LogEntryOut(BaseModel):
     commute: CategoryEstimate
     food: CategoryEstimate
     energy: CategoryEstimate
+    flights: CategoryEstimate
+    shopping: CategoryEstimate
     total_kg_co2e: float
     total_low_kg_co2e: float
     total_high_kg_co2e: float
@@ -122,6 +158,9 @@ class ParseResponse(BaseModel):
     diet_type: Optional[str] = None
     energy_kwh: Optional[float] = None
     energy_level: Optional[str] = None
+    flight_km: Optional[float] = None
+    flight_haul: Optional[str] = None
+    shopping_level: Optional[str] = None
     inferred_fields: list[str] = []
     notes: Optional[str] = None
     raw_text: str
@@ -134,12 +173,25 @@ class SimulateRequest(BaseModel):
     diet_type: Optional[str] = None
     energy_kwh: Optional[float] = None
     energy_level: Optional[str] = None
+    flight_km: Optional[float] = None
+    flight_haul: Optional[str] = None
+    shopping_level: Optional[str] = None
     region: str = "IN"
 
     @field_validator("commute_mode")
     @classmethod
     def valid_commute_mode(cls, v):
         return _valid_commute_mode(v)
+
+    @field_validator("flight_haul")
+    @classmethod
+    def valid_flight_haul(cls, v):
+        return _valid_flight_haul(v)
+
+    @field_validator("shopping_level")
+    @classmethod
+    def valid_shopping_level(cls, v):
+        return _valid_shopping_level(v)
 
     @field_validator("region")
     @classmethod
@@ -153,6 +205,8 @@ class SimulateResponse(BaseModel):
     commute: CategoryEstimate
     food: CategoryEstimate
     energy: CategoryEstimate
+    flights: CategoryEstimate
+    shopping: CategoryEstimate
     total_kg_co2e: float
     baseline_kg_co2e: Optional[float] = None
     delta_kg_co2e: Optional[float] = None

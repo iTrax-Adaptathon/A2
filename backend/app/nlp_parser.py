@@ -24,6 +24,8 @@ from dataclasses import dataclass, field
 from datetime import date as date_type
 from datetime import timedelta
 
+from .emission_factors import FLIGHT_HAUL_DEFAULT_KM, LONG_HAUL_THRESHOLD_KM
+
 MILES_TO_KM = 1.60934
 AVG_CAR_KM_PER_LITRE = 15.0  # rough average, used only to interpret fuel-receipt litres
 
@@ -56,6 +58,18 @@ ENERGY_LEVEL_KEYWORDS = {
     "medium": ["normal usage", "medium usage", "average energy"],
 }
 
+FLIGHT_KEYWORDS = ["flew", "flight", "flying", "plane", "airplane", "air travel"]
+LONG_HAUL_KEYWORDS = ["international", "long haul", "long-haul", "abroad", "overseas"]
+SHORT_HAUL_KEYWORDS = ["domestic", "short haul", "short-haul", "local flight"]
+
+SHOPPING_KEYWORDS = ["bought", "shopping", "shopped", "purchased", "ordered", "new clothes", "online order"]
+HIGH_SHOPPING_KEYWORDS = ["big shopping", "lots of shopping", "a lot of shopping", "shopping spree", "bought a lot"]
+LOW_SHOPPING_KEYWORDS = ["small order", "just a few things", "bought a little", "one item"]
+
+RECEIPT_SHOPPING_STORE_KEYWORDS = [
+    "mall", "amazon", "flipkart", "myntra", "clothing", "shoes", "electronics", "gadget", "order confirmed",
+]
+
 
 @dataclass
 class ParsedResult:
@@ -65,6 +79,9 @@ class ParsedResult:
     diet_type: str | None = None
     energy_kwh: float | None = None
     energy_level: str | None = None
+    flight_km: float | None = None
+    flight_haul: str | None = None
+    shopping_level: str | None = None
     inferred_fields: set = field(default_factory=set)
     explanations: list = field(default_factory=list)
 
@@ -77,18 +94,26 @@ def _find_keyword(text: str, keyword_map: dict) -> str | None:
     return None
 
 
-def _find_distance_km(text: str) -> float | None:
-    km_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:km|kilometers?|kilometres?)\b", text)
-    if km_match:
-        return float(km_match.group(1))
-    mi_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:mi|miles?)\b", text)
-    if mi_match:
-        return round(float(mi_match.group(1)) * MILES_TO_KM, 1)
-    return None
+def _find_all_distances_km(text: str) -> list[float]:
+    """All distance mentions in the order they appear, km and miles
+    normalized to km -- used positionally so multiple distances in one
+    sentence (e.g. a commute AND a flight) get assigned to the right
+    field rather than both grabbing the first number."""
+    out = []
+    for m in re.finditer(r"(\d+(?:\.\d+)?)\s*(km|kilometers?|kilometres?|mi|miles?)\b", text):
+        value = float(m.group(1))
+        km = value * MILES_TO_KM if m.group(2).startswith("mi") else value
+        out.append(round(km, 1))
+    return out
 
 
 def _find_energy_kwh(text: str) -> float | None:
     match = re.search(r"(\d+(?:\.\d+)?)\s*(?:kwh|units?)\b", text)
+    return float(match.group(1)) if match else None
+
+
+def _find_amount(text: str) -> float | None:
+    match = re.search(r"total\D{0,10}?(\d+(?:\.\d+)?)", text)
     return float(match.group(1)) if match else None
 
 
@@ -101,15 +126,24 @@ def parse_text(text: str, channel: str = "natural_language", today: date_type | 
     if "yesterday" in lower:
         result.date = today - timedelta(days=1)
 
+    # Distances are consumed positionally (first mention -> commute,
+    # next -> flight) so "drove 10km then flew 2000km" assigns each
+    # number to the right field instead of both grabbing the first one.
+    distances = _find_all_distances_km(lower)
+    distance_cursor = 0
+
     # --- commute ---
     mode = _find_keyword(lower, COMMUTE_KEYWORDS)
     if mode:
         result.commute_mode = mode
-        distance = _find_distance_km(lower)
-        if distance is not None:
-            result.commute_distance_km = distance
-            result.explanations.append(f"Commute: {mode}, {distance}km (stated)")
-        elif mode != "wfh":
+        if mode == "wfh":
+            result.commute_distance_km = 0.0
+            result.explanations.append("Commute: work from home (0km)")
+        elif distance_cursor < len(distances):
+            result.commute_distance_km = distances[distance_cursor]
+            distance_cursor += 1
+            result.explanations.append(f"Commute: {mode}, {result.commute_distance_km}km (stated)")
+        else:
             # Mode named but no distance -- fill a typical assumption and
             # flag it as inferred rather than observed.
             result.commute_distance_km = 10.0
@@ -117,9 +151,44 @@ def parse_text(text: str, channel: str = "natural_language", today: date_type | 
             result.explanations.append(
                 f"Commute: detected '{mode}' but no distance -- assumed a typical 10km"
             )
+
+    # --- flights ---
+    if any(kw in lower for kw in FLIGHT_KEYWORDS):
+        distance_stated = distance_cursor < len(distances)
+        if distance_stated:
+            result.flight_km = distances[distance_cursor]
+            distance_cursor += 1
+
+        if any(kw in lower for kw in LONG_HAUL_KEYWORDS):
+            result.flight_haul = "long"
+        elif any(kw in lower for kw in SHORT_HAUL_KEYWORDS):
+            result.flight_haul = "short"
+        elif result.flight_km is not None:
+            result.flight_haul = "long" if result.flight_km >= LONG_HAUL_THRESHOLD_KM else "short"
         else:
-            result.commute_distance_km = 0.0
-            result.explanations.append("Commute: work from home (0km)")
+            result.flight_haul = "short"
+
+        if not distance_stated:
+            result.flight_km = FLIGHT_HAUL_DEFAULT_KM[result.flight_haul]
+            result.inferred_fields.add("flights")
+            result.explanations.append(
+                f"Flight: detected but no distance stated -- assumed {result.flight_haul}-haul ~{result.flight_km}km"
+            )
+        else:
+            result.explanations.append(f"Flight: {result.flight_haul}-haul, {result.flight_km}km (stated)")
+
+    # --- shopping ---
+    if any(kw in lower for kw in SHOPPING_KEYWORDS):
+        if any(kw in lower for kw in HIGH_SHOPPING_KEYWORDS):
+            result.shopping_level = "high"
+            result.explanations.append("Shopping: 'high' intensity mentioned (observed)")
+        elif any(kw in lower for kw in LOW_SHOPPING_KEYWORDS):
+            result.shopping_level = "low"
+            result.explanations.append("Shopping: 'low' intensity mentioned (observed)")
+        else:
+            result.shopping_level = "medium"
+            result.inferred_fields.add("shopping")
+            result.explanations.append("Shopping: mentioned but no intensity stated -- assumed medium")
 
     # --- receipt-specific: fuel litres -> implied driving distance ---
     if channel == "receipt":
@@ -147,6 +216,20 @@ def parse_text(text: str, channel: str = "natural_language", today: date_type | 
                 result.diet_type = "vegetarian"
                 result.inferred_fields.add("food")
                 result.explanations.append("Receipt: vegetarian items detected -- inferred vegetarian diet")
+
+        if result.shopping_level is None and any(kw in lower for kw in RECEIPT_SHOPPING_STORE_KEYWORDS):
+            amount = _find_amount(lower)
+            if amount is not None and amount > 2000:
+                result.shopping_level = "high"
+            elif amount is not None and amount < 500:
+                result.shopping_level = "low"
+            else:
+                result.shopping_level = "medium"
+            result.inferred_fields.add("shopping")
+            amount_note = f"total {amount:.0f}" if amount is not None else "no total found"
+            result.explanations.append(
+                f"Receipt: shopping store detected ({amount_note}) -- inferred {result.shopping_level} shopping"
+            )
 
     # --- diet (general text) ---
     if result.diet_type is None:

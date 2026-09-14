@@ -11,6 +11,9 @@ export default function LogForm({ reference, region, onSaved }) {
   const [energyMode, setEnergyMode] = useState("level"); // "level" | "kwh"
   const [energyKwh, setEnergyKwh] = useState("");
   const [energyLevel, setEnergyLevel] = useState("");
+  const [flightKm, setFlightKm] = useState("");
+  const [flightHaul, setFlightHaul] = useState("");
+  const [shoppingLevel, setShoppingLevel] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -30,6 +33,9 @@ export default function LogForm({ reference, region, onSaved }) {
         diet_type: dietType || null,
         energy_kwh: energyMode === "kwh" && energyKwh !== "" ? Number(energyKwh) : null,
         energy_level: energyMode === "level" ? energyLevel || null : null,
+        flight_km: flightHaul && flightKm !== "" ? Number(flightKm) : null,
+        flight_haul: flightHaul || null,
+        shopping_level: shoppingLevel || null,
         notes: notes || null,
         region,
         channel: "form",
@@ -37,6 +43,10 @@ export default function LogForm({ reference, region, onSaved }) {
       });
       onSaved();
       setNotes("");
+      // Flights are one-off events -- clear them so the next save (likely
+      // the following day) doesn't accidentally repeat today's flight.
+      setFlightKm("");
+      setFlightHaul("");
     } catch (err) {
       setError(err?.response?.data?.detail ? JSON.stringify(err.response.data.detail) : "Failed to save log.");
     } finally {
@@ -134,6 +144,49 @@ export default function LogForm({ reference, region, onSaved }) {
             placeholder="e.g. 6.5"
           />
         )}
+      </fieldset>
+
+      <fieldset>
+        <legend>Flights</legend>
+        <label>
+          Haul (only if you flew today)
+          <select value={flightHaul} onChange={(e) => setFlightHaul(e.target.value)}>
+            <option value="">Didn't fly</option>
+            {reference.flight_hauls.map((h) => (
+              <option key={h} value={h}>
+                {h}-haul
+              </option>
+            ))}
+          </select>
+        </label>
+        {flightHaul && (
+          <label>
+            Distance (km)
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={flightKm}
+              onChange={(e) => setFlightKm(e.target.value)}
+              placeholder="e.g. 2200"
+            />
+          </label>
+        )}
+      </fieldset>
+
+      <fieldset>
+        <legend>Shopping</legend>
+        <label>
+          Consumption today
+          <select value={shoppingLevel} onChange={(e) => setShoppingLevel(e.target.value)}>
+            <option value="">Not logged</option>
+            {reference.shopping_levels.map((l) => (
+              <option key={l} value={l}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </label>
       </fieldset>
 
       <label>

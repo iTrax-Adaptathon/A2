@@ -7,6 +7,10 @@ export default function WhatIfSimulator({ reference, region }) {
   const [commuteDistance, setCommuteDistance] = useState(12);
   const [dietType, setDietType] = useState("average");
   const [energyLevel, setEnergyLevel] = useState("medium");
+  const [includeFlight, setIncludeFlight] = useState(false);
+  const [flightHaul, setFlightHaul] = useState("short");
+  const [flightDistance, setFlightDistance] = useState(800);
+  const [shoppingLevel, setShoppingLevel] = useState("medium");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -19,6 +23,9 @@ export default function WhatIfSimulator({ reference, region }) {
         commute_distance_km: commuteMode && commuteMode !== "wfh" ? Number(commuteDistance) : commuteMode === "wfh" ? 0 : null,
         diet_type: dietType || null,
         energy_level: energyLevel || null,
+        flight_km: includeFlight ? Number(flightDistance) : null,
+        flight_haul: includeFlight ? flightHaul : null,
+        shopping_level: shoppingLevel || null,
         region,
       })
         .then((r) => {
@@ -32,7 +39,7 @@ export default function WhatIfSimulator({ reference, region }) {
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [commuteMode, commuteDistance, dietType, energyLevel, region]);
+  }, [commuteMode, commuteDistance, dietType, energyLevel, includeFlight, flightHaul, flightDistance, shoppingLevel, region]);
 
   const needsDistance = commuteMode && commuteMode !== "wfh";
 
@@ -88,6 +95,45 @@ export default function WhatIfSimulator({ reference, region }) {
               ))}
             </select>
           </label>
+          <label>
+            Shopping
+            <select value={shoppingLevel} onChange={(e) => setShoppingLevel(e.target.value)}>
+              {reference.shopping_levels.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="inline">
+            <input type="checkbox" checked={includeFlight} onChange={(e) => setIncludeFlight(e.target.checked)} />
+            Include a flight in this scenario
+          </label>
+          {includeFlight && (
+            <>
+              <label>
+                Haul
+                <select value={flightHaul} onChange={(e) => setFlightHaul(e.target.value)}>
+                  {reference.flight_hauls.map((h) => (
+                    <option key={h} value={h}>
+                      {h}-haul
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Distance: {flightDistance}km
+                <input
+                  type="range"
+                  min="200"
+                  max="15000"
+                  step="100"
+                  value={flightDistance}
+                  onChange={(e) => setFlightDistance(e.target.value)}
+                />
+              </label>
+            </>
+          )}
         </div>
 
         <div className="whatif-result">
@@ -112,6 +158,12 @@ export default function WhatIfSimulator({ reference, region }) {
                 </li>
                 <li>
                   Energy: {result.energy.kg_co2e}kg <SourceBadge source={result.energy.source} />
+                </li>
+                <li>
+                  Flights: {result.flights.kg_co2e}kg <SourceBadge source={result.flights.source} />
+                </li>
+                <li>
+                  Shopping: {result.shopping.kg_co2e}kg <SourceBadge source={result.shopping.source} />
                 </li>
               </ul>
             </>

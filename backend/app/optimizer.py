@@ -1,14 +1,21 @@
 """
 Constraint-based carbon optimization (item 11): given a target kg
 CO2e/day, recommend the smallest set of lifestyle-lever changes
-(commute mode, diet, energy usage) that gets a user from their current
-personal baseline to that target -- greedily picking the
-highest-kg-saved-per-day lever first, which favors the least number of
-disruptive changes rather than claiming true global optimality.
+(commute mode, diet, energy usage, shopping level) that gets a user
+from their current personal baseline to that target -- greedily
+picking the highest-kg-saved-per-day lever first, which favors the
+least number of disruptive changes rather than claiming true global
+optimality.
+
+Flights are counted in the baseline (amortized across the log window,
+see `_amortized_flights_kg_per_day`) but deliberately NOT offered as a
+lever here -- a flight already happened, there's no daily habit to
+swap it for. That's a real limitation worth stating rather than
+quietly ignoring.
 
 This intentionally stays a plain greedy selection over a small, fixed
 action catalog -- a real knapsack/ILP solver would be overkill for
-three levers, and a future team wanting genuine multi-constraint
+four levers, and a future team wanting genuine multi-constraint
 optimization (cost, effort, feasibility) has a clear seam to extend
 `_candidate_actions` without touching the rest of the app.
 """
@@ -20,11 +27,14 @@ from statistics import mean
 from .emission_factors import (
     DIET_FACTORS_KG_PER_DAY,
     ENERGY_LEVEL_KWH,
+    FLIGHT_FACTORS_KG_PER_KM,
+    SHOPPING_LEVEL_KG_PER_DAY,
     get_region,
     population_defaults_kg_per_day,
 )
 
 ENERGY_TIER_DOWN = {"high": "medium", "medium": "low"}
+SHOPPING_TIER_DOWN = {"high": "medium", "medium": "low"}
 
 
 @dataclass
@@ -71,12 +81,42 @@ def _current_energy(region: dict, history: list) -> tuple[float, str | None]:
     return defaults["energy"], "medium"
 
 
+def _current_shopping(region_code: str, history: list) -> tuple[float, str]:
+    """Returns (current_kg_per_day, current_level)."""
+    level_entries = [h.shopping_level for h in history if getattr(h, "shopping_level", None)]
+    if level_entries:
+        level = Counter(level_entries).most_common(1)[0][0]
+        return SHOPPING_LEVEL_KG_PER_DAY[level], level
+
+    defaults = population_defaults_kg_per_day(region_code)
+    return defaults["shopping"], "medium"
+
+
+def _amortized_flights_kg_per_day(history: list) -> float:
+    """Flights are event-based (see estimator.py), so their fair share
+    of a *daily* baseline is total flight emissions spread over every
+    day in the log window, not the average of only the days flown --
+    otherwise a single long-haul trip would look like a daily habit.
+    Not offered as an optimizer lever (see module docstring): there's
+    no "smaller" lever for a trip that already happened."""
+    if not history:
+        return 0.0
+    total = sum(
+        FLIGHT_FACTORS_KG_PER_KM[h.flight_haul] * h.flight_km
+        for h in history
+        if getattr(h, "flight_km", None) is not None and getattr(h, "flight_haul", None) is not None
+    )
+    return round(total / len(history), 2)
+
+
 def _candidate_actions(region: dict, region_code: str, history: list) -> tuple[list[Action], float]:
     commute_mode, commute_distance, commute_kg = _current_commute(region, history)
     diet, diet_kg = _current_diet(history)
     energy_kg, energy_level = _current_energy(region, history)
+    shopping_kg, shopping_level = _current_shopping(region_code, history)
+    flights_kg = _amortized_flights_kg_per_day(history)
 
-    baseline = round(commute_kg + diet_kg + energy_kg, 2)
+    baseline = round(commute_kg + diet_kg + energy_kg + shopping_kg + flights_kg, 2)
     actions: list[Action] = []
 
     current_commute_factor = region["commute_kg_per_km"][commute_mode]
@@ -131,6 +171,18 @@ def _candidate_actions(region: dict, region_code: str, history: list) -> tuple[l
                     rationale="A general efficiency cut (LEDs, standby power, thermostat) on your logged usage.",
                 )
             )
+
+    if shopping_level in SHOPPING_TIER_DOWN:
+        lower = SHOPPING_TIER_DOWN[shopping_level]
+        saved = round(SHOPPING_LEVEL_KG_PER_DAY[shopping_level] - SHOPPING_LEVEL_KG_PER_DAY[lower], 2)
+        actions.append(
+            Action(
+                lever="shopping",
+                change=f"{shopping_level} consumption → {lower} consumption",
+                kg_saved_per_day=saved,
+                rationale="Buying fewer new goods / choosing lower-impact ones.",
+            )
+        )
 
     actions.sort(key=lambda a: a.kg_saved_per_day, reverse=True)
     return actions, baseline

@@ -6,7 +6,7 @@
 }
 
 .sidebar {
-  width: 220px;
+  width: 224px;
   flex-shrink: 0;
   background: var(--bg-sidebar);
   color: #e5e7eb;
@@ -16,28 +16,51 @@
   position: sticky;
   top: 0;
   height: 100vh;
+  border-right: 1px solid var(--border-soft);
+  position: relative;
+}
+
+.sidebar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--ember), var(--lime));
 }
 
 .sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.6rem 1.5rem;
+  gap: 0.65rem;
+  padding: 0.9rem 0.6rem 1.5rem;
 }
 
 .sidebar-brand-mark {
-  font-size: 1.6rem;
+  font-size: 1.5rem;
+  width: 2.1rem;
+  height: 2.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--ember-soft), var(--bg-elevated));
+  border: 1px solid var(--border);
 }
 
 .sidebar-brand-title {
+  font-family: var(--font-display);
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.98rem;
   color: #fff;
+  letter-spacing: -0.01em;
 }
 
 .sidebar-brand-sub {
-  font-size: 0.7rem;
-  color: #8b95a5;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
 }
 
 .sidebar ul {
@@ -72,7 +95,8 @@
 
 .sidebar button.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
+  font-weight: 700;
 }
 
 .nav-icon {
@@ -100,7 +124,20 @@
 
 .topbar h1 {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1.35rem;
+  position: relative;
+  padding-bottom: 0.3rem;
+}
+
+.topbar h1::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 2.4rem;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--ember), var(--lime));
 }
 
 .topbar-right {
@@ -170,6 +207,19 @@ main {
   border-radius: var(--radius);
   padding: 1.4rem 1.6rem;
   box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--ember), transparent 65%);
+  opacity: 0.7;
 }
 
 .card h2 {
@@ -260,7 +310,7 @@ main {
 
 .badge-personal_estimate {
   background: var(--energy-soft);
-  color: #b45309;
+  color: var(--energy);
 }
 
 .badge-population_default {
@@ -363,9 +413,9 @@ button {
 .parse-actions button {
   padding: 0.65rem 1.1rem;
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 700;
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -550,7 +600,8 @@ button:disabled {
 }
 
 .stat-value {
-  font-size: 1.6rem;
+  font-family: var(--font-mono);
+  font-size: 1.7rem;
   font-weight: 700;
 }
 
@@ -599,12 +650,14 @@ button:disabled {
 /* ---------- chart tooltip ---------- */
 
 .chart-tooltip {
-  background: #111827;
-  color: white;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  color: var(--text);
   padding: 0.6rem 0.8rem;
   border-radius: 8px;
   font-size: 0.8rem;
-  min-width: 180px;
+  font-family: var(--font-mono);
+  min-width: 190px;
 }
 
 .tooltip-row {
@@ -635,19 +688,19 @@ button:disabled {
 }
 
 .source-observed {
-  color: #4ade80;
+  color: var(--lime);
 }
 
 .source-inferred {
-  color: #818cf8;
+  color: var(--commute);
 }
 
 .source-personal_estimate {
-  color: #fbbf24;
+  color: var(--energy);
 }
 
 .source-population_default {
-  color: #f87171;
+  color: var(--flights);
 }
 
 /* ---------- history table ---------- */
@@ -660,6 +713,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.83rem;
+  font-family: var(--font-mono);
 }
 
 th,
@@ -921,6 +975,14 @@ th {
 
 .action-bar-fill.lever-energy {
   background: var(--energy);
+}
+
+.action-bar-fill.lever-shopping {
+  background: var(--shopping);
+}
+
+.action-saving {
+  font-family: var(--font-mono);
 }
 
 .action-rationale {

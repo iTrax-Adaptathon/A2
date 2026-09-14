@@ -11,10 +11,10 @@ export default function Sidebar({ active, onSelect }) {
   return (
     <nav className="sidebar">
       <div className="sidebar-brand">
-        <span className="sidebar-brand-mark">{"🌱"}</span>
+        <span className="sidebar-brand-mark">{"🔥"}</span>
         <div>
-          <div className="sidebar-brand-title">Carbon Tracker</div>
-          <div className="sidebar-brand-sub">Adaptathon · Sprint 1</div>
+          <div className="sidebar-brand-title">Carbon Emission</div>
+          <div className="sidebar-brand-sub">ADAPTATHON · SPRINT 1</div>
         </div>
       </div>
       <ul>

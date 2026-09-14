@@ -11,7 +11,15 @@ import {
   YAxis,
 } from "recharts";
 
-const COLORS = { commute: "#6366f1", food: "#22c55e", energy: "#f59e0b", forecast: "#94a3b8" };
+const COLORS = {
+  commute: "#00c2d1",
+  food: "#7ddb56",
+  energy: "#ffb300",
+  flights: "#ff4d4d",
+  shopping: "#c084fc",
+  forecast: "#8d8b85",
+};
+const CATEGORIES = ["commute", "food", "energy", "flights", "shopping"];
 
 const SOURCE_LABEL = {
   observed: "observed",
@@ -45,7 +53,7 @@ function CustomTooltip({ active, payload, label }) {
   return (
     <div className="chart-tooltip">
       <strong>{label}</strong>
-      {["commute", "food", "energy"].map((cat) => (
+      {CATEGORIES.filter((cat) => row[cat] > 0 || row[`${cat}_source`] !== "population_default").map((cat) => (
         <div key={cat} className="tooltip-row">
           <span style={{ color: COLORS[cat] }}>{cat}</span>
           <span>
@@ -81,6 +89,10 @@ export default function TrendsChart({ trend, forecast }) {
     food_source: entry.food.source,
     energy: entry.energy.kg_co2e,
     energy_source: entry.energy.source,
+    flights: entry.flights.kg_co2e,
+    flights_source: entry.flights.source,
+    shopping: entry.shopping.kg_co2e,
+    shopping_source: entry.shopping.source,
     total: entry.total_kg_co2e,
     totalLow: entry.total_low_kg_co2e,
     totalHigh: entry.total_high_kg_co2e,
@@ -103,6 +115,7 @@ export default function TrendsChart({ trend, forecast }) {
       <h2>Trend &amp; forecast</h2>
       <p className="hint">
         Solid bars are logged days; the shaded band past the last bar is a {forecast?.method === "linear_regression" ? "regression-based" : "flat-average"} projection.
+        A flight day can dwarf the rest of the bars &mdash; that's accurate, not a bug.
       </p>
       <ResponsiveContainer width="100%" height={340}>
         <ComposedChart data={data}>
@@ -113,7 +126,9 @@ export default function TrendsChart({ trend, forecast }) {
           <Legend />
           <Bar dataKey="commute" stackId="a" fill={COLORS.commute} name="Commute" />
           <Bar dataKey="food" stackId="a" fill={COLORS.food} name="Food" />
-          <Bar dataKey="energy" stackId="a" fill={COLORS.energy} radius={[4, 4, 0, 0]} name="Energy" />
+          <Bar dataKey="energy" stackId="a" fill={COLORS.energy} name="Energy" />
+          <Bar dataKey="flights" stackId="a" fill={COLORS.flights} name="Flights" />
+          <Bar dataKey="shopping" stackId="a" fill={COLORS.shopping} radius={[4, 4, 0, 0]} name="Shopping" />
           <Area
             dataKey="forecastBand"
             fill={COLORS.forecast}

@@ -38,6 +38,8 @@ export default function HistoryTable({ trend, onChanged }) {
               <th>Commute</th>
               <th>Food</th>
               <th>Energy</th>
+              <th>Flights</th>
+              <th>Shopping</th>
               <th>Total</th>
               <th></th>
             </tr>
@@ -57,6 +59,18 @@ export default function HistoryTable({ trend, onChanged }) {
                 </td>
                 <td>
                   {entry.energy.kg_co2e} kg <SourceBadge source={entry.energy.source} />
+                </td>
+                <td>
+                  {entry.flights.kg_co2e > 0 ? (
+                    <>
+                      {entry.flights.kg_co2e} kg <SourceBadge source={entry.flights.source} />
+                    </>
+                  ) : (
+                    <span className="muted">&mdash;</span>
+                  )}
+                </td>
+                <td>
+                  {entry.shopping.kg_co2e} kg <SourceBadge source={entry.shopping.source} />
                 </td>
                 <td>
                   <strong>{entry.total_kg_co2e} kg</strong>

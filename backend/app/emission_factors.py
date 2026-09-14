@@ -91,6 +91,29 @@ ENERGY_LEVEL_KWH = {
     "high": 15.0,
 }
 
+# Aviation emission factors are treated as global (aircraft fuel burn
+# doesn't vary by the passenger's home region the way a car/grid does).
+# Short-haul flights carry a higher per-km factor because takeoff/climb
+# burns disproportionate fuel relative to a short cruise; long-haul
+# cruises more efficiently per km once airborne.
+FLIGHT_FACTORS_KG_PER_KM = {
+    "short": 0.15,   # domestic / regional, typically < 1500km
+    "long": 0.11,    # international / long-haul
+}
+FLIGHT_HAUL_DEFAULT_KM = {"short": 800.0, "long": 6000.0}
+LONG_HAUL_THRESHOLD_KM = 1500.0
+
+# Shopping/consumption is modeled as an amortized daily share (like
+# energy usage level) rather than a per-item calculation, since most
+# people don't log every purchase -- this is deliberately the
+# coarsest category in the model; see the Roadmap's "Carbon ROI
+# ranking" preview for a more granular, spend-based direction.
+SHOPPING_LEVEL_KG_PER_DAY = {
+    "low": 1.0,
+    "medium": 3.2,
+    "high": 7.5,
+}
+
 
 def list_regions():
     return [
@@ -108,10 +131,18 @@ def get_region(code: str) -> dict:
 def population_defaults_kg_per_day(region_code: str) -> dict:
     """Fallback used only when a user has zero personal history in a
     category yet, so the very first log entry still gets a sensible
-    number instead of a misleading zero."""
+    number instead of a misleading zero.
+
+    Flights default to 0: unlike commute/food/energy/shopping, flying
+    is an occasional event rather than a daily habit, so "no data" on
+    a random day should mean "didn't fly" rather than an assumed
+    average flight (see estimator.py's `use_personal_average=False`
+    handling for the same reasoning)."""
     region = get_region(region_code)
     return {
         "commute": round(region["commute_kg_per_km"]["car"] * 12, 2),  # ~12km typical one-way commute
         "food": DIET_FACTORS_KG_PER_DAY["average"],
         "energy": round(ENERGY_LEVEL_KWH["medium"] * region["energy_kg_per_kwh"], 2),
+        "flights": 0.0,
+        "shopping": SHOPPING_LEVEL_KG_PER_DAY["medium"],
     }

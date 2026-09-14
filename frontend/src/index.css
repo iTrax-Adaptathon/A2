@@ -1,56 +1,63 @@
 :root {
-  --bg: #f4f6f8;
-  --bg-elevated: #ffffff;
-  --bg-sidebar: #10161f;
-  --text: #111827;
-  --text-muted: #6b7280;
-  --border: #e5e7eb;
-  --border-soft: #eef0f3;
+  /* "Instrument panel" theme: near-black ash background, an ember/orange
+     brand accent (the thing being measured -- emission, heat), lime for
+     reduction/positive signals, and a distinct hue per emission category
+     so the same color always means the same category everywhere in the
+     app (charts, badges, optimizer bars, roadmap). */
+  --bg: #0a0a0b;
+  --bg-elevated: #16171a;
+  --bg-sidebar: #050506;
+  --text: #f2f1ec;
+  --text-muted: #8d8b85;
+  --border: #26262a;
+  --border-soft: #1c1c1f;
 
-  --accent: #16a34a;
-  --accent-soft: #dcfce7;
-  --commute: #6366f1;
-  --commute-soft: #e0e7ff;
-  --food: #16a34a;
-  --food-soft: #dcfce7;
-  --energy: #f59e0b;
-  --energy-soft: #fef3c7;
-  --warning: #d97706;
-  --warning-soft: #fef3c7;
-  --danger: #dc2626;
-  --danger-soft: #fee2e2;
+  --ember: #ff5a1f;
+  --ember-soft: #3a1f10;
+  --lime: #c6f135;
+  --lime-soft: #1f2a0a;
 
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
-  --shadow-md: 0 4px 16px rgba(16, 24, 40, 0.08);
+  --commute: #00c2d1;
+  --commute-soft: #06282b;
+  --food: #7ddb56;
+  --food-soft: #16250d;
+  --energy: #ffb300;
+  --energy-soft: #2e2005;
+  --flights: #ff4d4d;
+  --flights-soft: #2e0f0f;
+  --shopping: #c084fc;
+  --shopping-soft: #211230;
+
+  --warning: #ffb300;
+  --warning-soft: #2e2005;
+  --danger: #ff4d4d;
+  --danger-soft: #2e0f0f;
+
+  /* Primary interactive accent is lime (go/save/positive); ember is the
+     brand identity color (logo mark, headline underline) representing
+     the thing the app measures rather than the action to take. */
+  --accent: var(--lime);
+  --accent-soft: var(--lime-soft);
+  --on-accent: #0a0a0b; /* text color for anything sitting on a bright lime/ember fill */
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.55);
   --radius: 14px;
 
-  font: 15px/1.55 "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
-  color-scheme: light dark;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  font: 15px/1.55 var(--font-body);
+  color-scheme: dark;
   color: var(--text);
   background: var(--bg);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0b0e13;
-    --bg-elevated: #151a22;
-    --bg-sidebar: #0a0d12;
-    --text: #f3f4f6;
-    --text-muted: #9aa3af;
-    --border: #232a35;
-    --border-soft: #1b212b;
-
-    --accent-soft: #113322;
-    --commute-soft: #1e213f;
-    --food-soft: #113322;
-    --energy-soft: #3a2c0f;
-    --warning-soft: #3a2c0f;
-    --danger-soft: #3a1717;
-
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
-  }
-}
+/* This theme is intentionally dark-first and single-committed (see
+   artifact/theme guidance on deliberate single-look designs) -- an
+   emissions "instrument panel" reads correctly in one register rather
+   than hedging between light and dark variants. */
 
 * {
   box-sizing: border-box;
@@ -64,6 +71,8 @@ h1,
 h2,
 h3 {
   color: var(--text);
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
 }
 
 code {
@@ -71,4 +80,5 @@ code {
   border-radius: 4px;
   padding: 0.1em 0.4em;
   font-size: 0.85em;
+  font-family: var(--font-mono);
 }

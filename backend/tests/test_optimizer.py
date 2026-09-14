@@ -15,6 +15,9 @@ class FakeEntry:
     diet_type: Optional[str] = None
     energy_kwh: Optional[float] = None
     energy_level: Optional[str] = None
+    flight_km: Optional[float] = None
+    flight_haul: Optional[str] = None
+    shopping_level: Optional[str] = None
 
 
 def _history(n=5):
@@ -25,6 +28,7 @@ def _history(n=5):
             commute_distance_km=15,
             diet_type="meat_heavy",
             energy_level="high",
+            shopping_level="high",
         )
         for i in range(n)
     ]
@@ -55,3 +59,26 @@ def test_no_history_still_produces_a_sane_baseline_and_actions():
     result = optimize([], target_kg_per_day=1, region_code=REGION)
     assert result["baseline_kg_per_day"] > 0
     assert result["actions"]
+
+
+def test_high_shopping_history_offers_a_shopping_lever():
+    result = optimize(_history(), target_kg_per_day=1, region_code=REGION)
+    shopping_actions = [a for a in result["actions"] if a.lever == "shopping"]
+    assert shopping_actions
+    assert shopping_actions[0].change.startswith("high")
+
+
+def test_flights_are_never_offered_as_a_lever():
+    history = _history() + [FakeEntry(date=date(2026, 2, 1), flight_km=6000, flight_haul="long")]
+    result = optimize(history, target_kg_per_day=1, region_code=REGION)
+    assert all(a.lever != "flights" for a in result["actions"])
+
+
+def test_flight_history_is_amortized_into_the_baseline_not_ignored():
+    without_flight = optimize(_history(), target_kg_per_day=1000, region_code=REGION)
+    with_flight = optimize(
+        _history() + [FakeEntry(date=date(2026, 2, 1), flight_km=6000, flight_haul="long")],
+        target_kg_per_day=1000,
+        region_code=REGION,
+    )
+    assert with_flight["baseline_kg_per_day"] > without_flight["baseline_kg_per_day"]

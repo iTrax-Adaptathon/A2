@@ -35,6 +35,8 @@ from typing import Iterable, Literal, Optional
 from .emission_factors import (
     DIET_FACTORS_KG_PER_DAY,
     ENERGY_LEVEL_KWH,
+    FLIGHT_FACTORS_KG_PER_KM,
+    SHOPPING_LEVEL_KG_PER_DAY,
     get_region,
     population_defaults_kg_per_day,
 )
@@ -82,6 +84,18 @@ def _raw_energy_kg(region: dict, energy_kwh: Optional[float], energy_level: Opti
     return None
 
 
+def _raw_flight_kg(flight_km: Optional[float], flight_haul: Optional[str]) -> Optional[float]:
+    if flight_km is None or flight_haul is None:
+        return None
+    return FLIGHT_FACTORS_KG_PER_KM[flight_haul] * flight_km
+
+
+def _raw_shopping_kg(shopping_level: Optional[str]) -> Optional[float]:
+    if shopping_level is None:
+        return None
+    return SHOPPING_LEVEL_KG_PER_DAY[shopping_level]
+
+
 def _band(kg: float, source: Source) -> CategoryResult:
     pct = UNCERTAINTY_PCT[source]
     delta = kg * pct
@@ -99,19 +113,27 @@ def _resolve(
     inferred: bool,
     personal_history: Iterable[float],
     default_kg: float,
+    use_personal_average: bool = True,
 ) -> CategoryResult:
     """`personal_history` must already be most-recent-date-first; only the
     first ROLLING_WINDOW values are used.
 
     `inferred` marks that `raw` (if not None) came from a channel that had
     to fill a gap itself (NL/voice/receipt) rather than an exact figure.
+
+    `use_personal_average=False` skips the personal-average fallback
+    entirely and goes straight to `default_kg` -- for event-based
+    categories like flights, where most days genuinely have zero, and
+    averaging only over the (rare) days something WAS logged would
+    wrongly assume every day includes that event.
     """
     if raw is not None:
         return _band(raw, "inferred" if inferred else "observed")
 
-    history = list(personal_history)[:ROLLING_WINDOW]
-    if history:
-        return _band(mean(history), "personal_estimate")
+    if use_personal_average:
+        history = list(personal_history)[:ROLLING_WINDOW]
+        if history:
+            return _band(mean(history), "personal_estimate")
 
     return _band(default_kg, "population_default")
 
@@ -120,8 +142,8 @@ def estimate_entry(entry, history: Iterable, region_code: str) -> dict:
     """
     entry: the LogEntry being estimated (ORM object or anything with the
            same attribute names, plus an optional `inferred_fields` set/dict
-           naming which of {"commute","food","energy"} were filled by a
-           gap-filling channel rather than given exactly).
+           naming which of {"commute","food","energy","flights","shopping"}
+           were filled by a gap-filling channel rather than given exactly).
     history: other LogEntry rows for this user, most-recent-date-first.
     region_code: which regional factor profile to compute against.
     """
@@ -139,6 +161,9 @@ def estimate_entry(entry, history: Iterable, region_code: str) -> dict:
         v
         for h in history
         if (v := _raw_energy_kg(region, h.energy_kwh, h.energy_level)) is not None
+    ]
+    shopping_history = [
+        v for h in history if (v := _raw_shopping_kg(getattr(h, "shopping_level", None))) is not None
     ]
 
     defaults = population_defaults_kg_per_day(region_code)
@@ -158,11 +183,23 @@ def estimate_entry(entry, history: Iterable, region_code: str) -> dict:
         energy_history,
         defaults["energy"],
     )
-
-    total = round(commute.kg_co2e + food.kg_co2e + energy.kg_co2e, 2)
-    combined_uncertainty = math.sqrt(
-        sum((c.kg_co2e * c.uncertainty_pct) ** 2 for c in (commute, food, energy))
+    flights = _resolve(
+        _raw_flight_kg(getattr(entry, "flight_km", None), getattr(entry, "flight_haul", None)),
+        "flights" in inferred_fields,
+        [],  # no personal-average smearing -- see use_personal_average docstring
+        defaults["flights"],
+        use_personal_average=False,
     )
+    shopping = _resolve(
+        _raw_shopping_kg(getattr(entry, "shopping_level", None)),
+        "shopping" in inferred_fields,
+        shopping_history,
+        defaults["shopping"],
+    )
+
+    categories = (commute, food, energy, flights, shopping)
+    total = round(sum(c.kg_co2e for c in categories), 2)
+    combined_uncertainty = math.sqrt(sum((c.kg_co2e * c.uncertainty_pct) ** 2 for c in categories))
     total_low = round(max(total - combined_uncertainty, 0), 2)
     total_high = round(total + combined_uncertainty, 2)
 
@@ -170,6 +207,8 @@ def estimate_entry(entry, history: Iterable, region_code: str) -> dict:
         "commute": commute,
         "food": food,
         "energy": energy,
+        "flights": flights,
+        "shopping": shopping,
         "total_kg_co2e": total,
         "total_low_kg_co2e": total_low,
         "total_high_kg_co2e": total_high,

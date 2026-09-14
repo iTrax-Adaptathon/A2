@@ -10,6 +10,8 @@ from .database import Base, SessionLocal, engine
 from .emission_factors import (
     DIET_FACTORS_KG_PER_DAY,
     ENERGY_LEVEL_KWH,
+    FLIGHT_FACTORS_KG_PER_KM,
+    SHOPPING_LEVEL_KG_PER_DAY,
     list_regions,
     REGIONS,
 )
@@ -21,7 +23,7 @@ from .optimizer import optimize as run_optimize
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Personal Carbon Footprint Tracker")
+app = FastAPI(title="Carbon Emission")
 
 # Wide-open CORS: this is a Sprint 1 hackathon build with no auth yet.
 # Tighten this before it ever sees a real deployment.
@@ -52,12 +54,17 @@ def _to_out(entry: models.LogEntry, all_entries: list[models.LogEntry]) -> schem
         diet_type=entry.diet_type,
         energy_kwh=entry.energy_kwh,
         energy_level=entry.energy_level,
+        flight_km=entry.flight_km,
+        flight_haul=entry.flight_haul,
+        shopping_level=entry.shopping_level,
         notes=entry.notes,
         region=entry.region,
         channel=entry.channel,
         commute=schemas.CategoryEstimate(**vars(result["commute"])),
         food=schemas.CategoryEstimate(**vars(result["food"])),
         energy=schemas.CategoryEstimate(**vars(result["energy"])),
+        flights=schemas.CategoryEstimate(**vars(result["flights"])),
+        shopping=schemas.CategoryEstimate(**vars(result["shopping"])),
         total_kg_co2e=result["total_kg_co2e"],
         total_low_kg_co2e=result["total_low_kg_co2e"],
         total_high_kg_co2e=result["total_high_kg_co2e"],
@@ -75,6 +82,8 @@ def reference():
         "commute_modes": list(any_region["commute_kg_per_km"].keys()),
         "diet_types": list(DIET_FACTORS_KG_PER_DAY.keys()),
         "energy_levels": list(ENERGY_LEVEL_KWH.keys()),
+        "flight_hauls": list(FLIGHT_FACTORS_KG_PER_KM.keys()),
+        "shopping_levels": list(SHOPPING_LEVEL_KG_PER_DAY.keys()),
     }
 
 
@@ -172,6 +181,8 @@ def summary():
             "commute": round(sum(t.commute.kg_co2e for t in trend), 2),
             "food": round(sum(t.food.kg_co2e for t in trend), 2),
             "energy": round(sum(t.energy.kg_co2e for t in trend), 2),
+            "flights": round(sum(t.flights.kg_co2e for t in trend), 2),
+            "shopping": round(sum(t.shopping.kg_co2e for t in trend), 2),
         }
 
         return schemas.SummaryOut(
@@ -204,6 +215,9 @@ def parse_log_text(payload: schemas.ParseRequest):
         diet_type=parsed.diet_type,
         energy_kwh=parsed.energy_kwh,
         energy_level=parsed.energy_level,
+        flight_km=parsed.flight_km,
+        flight_haul=parsed.flight_haul,
+        shopping_level=parsed.shopping_level,
         inferred_fields=sorted(parsed.inferred_fields),
         notes=payload.text,
         raw_text=payload.text,
@@ -231,6 +245,9 @@ def simulate(payload: schemas.SimulateRequest):
         h.diet_type = payload.diet_type
         h.energy_kwh = payload.energy_kwh
         h.energy_level = payload.energy_level
+        h.flight_km = payload.flight_km
+        h.flight_haul = payload.flight_haul
+        h.shopping_level = payload.shopping_level
         h.inferred_fields = set()
 
         result = estimate_entry(h, history, payload.region)
@@ -248,6 +265,8 @@ def simulate(payload: schemas.SimulateRequest):
             commute=schemas.CategoryEstimate(**vars(result["commute"])),
             food=schemas.CategoryEstimate(**vars(result["food"])),
             energy=schemas.CategoryEstimate(**vars(result["energy"])),
+            flights=schemas.CategoryEstimate(**vars(result["flights"])),
+            shopping=schemas.CategoryEstimate(**vars(result["shopping"])),
             total_kg_co2e=result["total_kg_co2e"],
             baseline_kg_co2e=baseline,
             delta_kg_co2e=delta,

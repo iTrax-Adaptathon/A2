@@ -1,6 +1,7 @@
-# Personal Carbon Footprint Tracker
+# Carbon Emission
 
-Built for **Adaptathon (Techkshetra'26) — Q2, Sprint 1**.
+Personal carbon footprint tracker built for **Adaptathon (Techkshetra'26) —
+Q2, Sprint 1**.
 
 > Each problem statement defines only what the first team builds in Sprint 1.
 > What the next team does with it after handoff is entirely open-ended — so
@@ -8,11 +9,28 @@ Built for **Adaptathon (Techkshetra'26) — Q2, Sprint 1**.
 
 ## What it does
 
-Users log daily lifestyle choices (commute, food, energy use) — via a form,
-typed natural language, voice, or a photographed receipt — and get an
-estimated carbon footprint (kg CO2e), visualized as a trend with a forecast,
-narrated by a rule-based analyst, and actionable through a what-if simulator
-and a constraint-based optimizer.
+Users log daily lifestyle choices across **five categories** — commute,
+food, home energy, flights, and shopping/consumption — via a form, typed
+natural language, voice, or a photographed receipt — and get an estimated
+carbon footprint (kg CO2e), visualized as a trend with a forecast, narrated
+by a rule-based analyst, and actionable through a what-if simulator and a
+constraint-based optimizer. The UI is a dark "instrument panel" theme
+(ember/lime accents, monospace numerics, a distinct color per category used
+consistently in every chart, badge, and bar) rather than a generic light
+SaaS dashboard.
+
+**Beyond commute/food/energy**, the two added categories reflect real
+contributors to a personal footprint that a 3-category model misses:
+
+- **Flights** — often the single largest line item in a real footprint (a
+  6000km long-haul flight ≈ 660kg CO2e, more than three weeks of daily
+  commuting). Modeled as *event-based*: a day with no flight logged defaults
+  to 0kg, never smeared as a personal-average guess (see below) — and
+  flights are deliberately **not** offered as an Optimizer lever, since a
+  trip that already happened has no smaller substitute.
+- **Shopping/consumption** — modeled as an amortized daily level (low/medium/
+  high), the same style as energy usage, since most people don't log every
+  purchase.
 
 Of the fifteen possible module ideas for this problem, this Sprint 1 build
 **fully implements eight** end-to-end (not mocked) and **previews the
@@ -41,8 +59,9 @@ described, not faked with placeholder data.
 
 ### Observed / inferred / personal_estimate / population_default (items 4, 5)
 
-For each of the three categories (commute, food, energy) on a given day,
-`backend/app/estimator.py` resolves a value in this priority order:
+For each of the five categories (commute, food, energy, flights, shopping)
+on a given day, `backend/app/estimator.py` resolves a value in this
+priority order:
 
 1. **`observed`** — an exact number from any channel (typed km, typed kWh, a
    meter reading pulled off a receipt).
@@ -55,9 +74,16 @@ For each of the three categories (commute, food, energy) on a given day,
 4. **`population_default`** — no data and no personal history yet either
    (day one), so a population-average constant is used.
 
+**Flights are the one exception to tier 3.** They're event-based, not a
+daily habit — averaging only over the days a flight *did* happen (tier 3's
+normal behavior) would wrongly assume every day includes one. So a day with
+no flight logged and no history skips straight to tier 4, whose default for
+flights is 0kg. Shopping still uses the normal tier-3 personal average, same
+as commute/food/energy.
+
 Every result carries this source **and an uncertainty band** (item 4):
 `observed` ±5%, `inferred` ±20%, `personal_estimate` ±30%,
-`population_default` ±50%. A day's total combines the three categories'
+`population_default` ±50%. A day's total combines all five categories'
 uncertainty via root-sum-of-squares, so the range tightens as more of the
 day is directly observed rather than guessed.
 
@@ -104,10 +130,12 @@ rather than leaving it looking broken.
   day's footprint against the current region/history *without persisting
   it*, compared live against your most recent logged day.
 - **Optimizer** (`backend/app/optimizer.py`) — given a target kg/day, greedily
-  ranks commute/diet/energy lever changes by kg-saved-per-day and picks the
-  smallest set that reaches the target. Deliberately a plain greedy
-  selection over a small fixed catalog, not a general solver — documented
-  as an extension seam for real multi-constraint optimization.
+  ranks commute/diet/energy/shopping lever changes by kg-saved-per-day and
+  picks the smallest set that reaches the target. Flights are counted in the
+  baseline (amortized across the whole log window) but never offered as a
+  lever — see above. Deliberately a plain greedy selection over a small
+  fixed catalog, not a general solver — documented as an extension seam for
+  real multi-constraint optimization.
 - **AI Carbon Analyst** (`backend/app/insights.py`) — a rule-based engine
   that reads the trend, forecast, and optimizer output and narrates it in
   plain language (trend direction, biggest contributor, data-quality,
@@ -127,7 +155,7 @@ backend/                  FastAPI + SQLite
     insights.py                Rule-based "AI Analyst" narration
     models.py, schemas.py       DB model / request-response shapes
     main.py                      Routes
-  tests/                    34 pytest cases across estimator, parser, forecast, optimizer
+  tests/                    48 pytest cases across estimator, parser, forecast, optimizer
   requirements.txt / requirements-dev.txt
 
 frontend/                 React + Vite

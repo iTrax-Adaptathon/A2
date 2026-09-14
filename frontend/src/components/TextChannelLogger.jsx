@@ -4,7 +4,7 @@ import SourceBadge from "./SourceBadge";
 
 const PLACEHOLDERS = {
   natural_language:
-    "e.g. \"Drove 14km to work, had a vegetarian lunch, used about 6 kwh\" or \"Took the train yesterday, mostly meat meals\"",
+    "e.g. \"Drove 14km to work, had a vegetarian lunch, used about 6 kwh\" or \"Flew 2200km for work, big shopping trip after\"",
   voice: "Press the mic and describe your day — it'll be transcribed here.",
   receipt: "Upload a fuel, electricity, or grocery receipt photo — extracted text will appear here.",
 };
@@ -50,6 +50,9 @@ export default function TextChannelLogger({ channel, region, onSaved }) {
         diet_type: parsed.diet_type,
         energy_kwh: parsed.energy_kwh,
         energy_level: parsed.energy_level,
+        flight_km: parsed.flight_km,
+        flight_haul: parsed.flight_haul,
+        shopping_level: parsed.shopping_level,
         notes: parsed.raw_text,
         region,
         channel,
@@ -132,6 +135,16 @@ export default function TextChannelLogger({ channel, region, onSaved }) {
           label: "Energy",
           value: parsed.energy_kwh != null ? `${parsed.energy_kwh} kWh` : parsed.energy_level,
           inferred: parsed.inferred_fields.includes("energy"),
+        },
+        {
+          label: "Flights",
+          value: parsed.flight_haul ? `${parsed.flight_haul}-haul, ${parsed.flight_km}km` : null,
+          inferred: parsed.inferred_fields.includes("flights"),
+        },
+        {
+          label: "Shopping",
+          value: parsed.shopping_level,
+          inferred: parsed.inferred_fields.includes("shopping"),
         },
       ]
     : [];
